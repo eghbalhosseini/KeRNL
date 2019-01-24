@@ -274,7 +274,8 @@ class KernelRNNCell(tf.contrib.rnn.RNNCell):
         recurrent_trace_decay=tf.multiply(kernel_decay,recurrent_trace)
         recurrent_trace_new=tf.add(recurrent_trace_decay,recurrent_trace_update)
 
-        # TODO implement online updating for sensitivity and kernel coeff
+        # calculate updates for sensitivty_tensor and kernel_coeff
+        sensitivity_tensor_update=tf.matmul(delta_sensitivity_new,tf.transpose(delta_sensitivity_new))
 
         if self._state_is_tuple:
             new_state=KernelRNNStateTuple(h_new,h_hat_new,Theta_new,Gamma_new,input_trace_new,
