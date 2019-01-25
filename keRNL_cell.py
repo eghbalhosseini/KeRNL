@@ -38,7 +38,7 @@ from tensorflow.python.util import nest
 from tensorflow.contrib.rnn.python.ops.core_rnn_cell import _Linear
 from tensorflow.contrib import slim
 
-_KERNEL_COEF_NAME= "temporal_kernel_coeff"
+_KERNEL_COEF_NAME= "temporal_filter_coeff"
 _SENSITIVITY_TENSOR_NAME= "sensitivity_tensor"
 
 
@@ -76,10 +76,10 @@ def _kernel_coeff_initializer(shape,dtype=None,partition_info=None,verify_shape=
     return tf.random_uniform(shape,0,max_val,dtype=dtype)
 
 
-_KernelRNNStateTuple = collections.namedtuple("KernelRNNStateTuple", ("h","h_hat","Theta", "Gamma","input_trace","recurrent_trace","delta_sensitivity"))
-_KernelRNNOutputTuple = collections.namedtuple("KernelRNNOutputTuple", ("h","h_hat","Theta","Gamma", "input_trace","recurrent_trace","delta_sensitivity"))
+_KeRNLStateTuple = collections.namedtuple("KeRNLStateTuple", ("h","h_hat","Theta", "Gamma","input_trace","recurrent_trace","delta_sensitivity"))
+_KeRNLOutputTuple = collections.namedtuple("KeRNLOutputTuple", ("h","h_hat","Theta","Gamma", "input_trace","recurrent_trace","delta_sensitivity"))
 
-class KernelRNNStateTuple(_KernelRNNStateTuple):
+class KeRNLStateTuple(_KeRNLStateTuple):
   """Tuple used by kernel RNN Cells for `state_variables `.
   Stores 9 elements: `(h, h_hat, Theta, Gamma, input_trace,recurrent_trace, sensitivty_tensor, kernel_coeff`, in that order.
   always is used for this type of cell
@@ -95,7 +95,7 @@ class KernelRNNStateTuple(_KernelRNNStateTuple):
     return h_hat.dtype
 
 
-class KernelRNNOutputTuple(_KernelRNNOutputTuple):
+class KeRNLOutputTuple(_KeRNLOutputTuple):
   """Tuple used by kernel Cells for output state.
   Stores 7 elements: `(h,h_hat, Theta, Gamma, input_trace, recurrent_trace)`,
   Only used when `output_is_tuple=True`.
@@ -111,7 +111,7 @@ class KernelRNNOutputTuple(_KernelRNNOutputTuple):
     return h_hat.dtype
 
 
-class KernelRNNCell(tf.contrib.rnn.RNNCell):
+class KeRNLCell(tf.contrib.rnn.RNNCell):
     """Kernel recurrent neural network Cell
       Args:
         num_units: int, The number of units in the cell.
@@ -140,7 +140,7 @@ class KernelRNNCell(tf.contrib.rnn.RNNCell):
                  kernel_initializer=None,
                  bias_initializer=None):
 
-        super(KernelRNNCell,self).__init__(_reuse=reuse)
+        super(KeRNLCell,self).__init__(_reuse=reuse)
         self._num_units = num_units
         self._num_inputs= num_inputs
         self._time_steps= time_steps
@@ -161,7 +161,7 @@ class KernelRNNCell(tf.contrib.rnn.RNNCell):
     @property
     # h,h_hat,Theta, Gamma,input_trace,recurrent_trace,sensitivty_tensor,kernel_coeff
     def state_size(self):
-        return (KernelRNNStateTuple(self._num_units,
+        return (KeRNLStateTuple(self._num_units,
                                     self._num_units,
                                     self._num_units,
                                     self._num_units,
@@ -171,7 +171,7 @@ class KernelRNNCell(tf.contrib.rnn.RNNCell):
                 if self._state_is_tuple else self._num_units)
     @property
     def output_size(self):
-        return (KernelRNNOutputTuple(self._num_units,
+        return (KeRNLOutputTuple(self._num_units,
                                     self._num_units,
                                     self._num_units,
                                     self._num_units,
@@ -182,10 +182,10 @@ class KernelRNNCell(tf.contrib.rnn.RNNCell):
 
     # call function routine
     def call(self, inputs, state):
-        """Kernel RNN cell (KernelRNN).
+        """Kernel RNN cell (KeRNL).
         Args:
           inputs: `2-D` tensor with shape `[batch_size x input_size]`.
-          state: An `KernelRNNStateTuple` of state tensors, shaped as following
+          state: An `KeRNLStateTuple` of state tensors, shaped as following
             h:                   [batch_size x self.state_size]`
             h_hat:               [batch_size x self.state_size]`
             Theta:               [batch_size x self.state_size]`
@@ -278,10 +278,10 @@ class KernelRNNCell(tf.contrib.rnn.RNNCell):
         sensitivity_tensor_update=tf.matmul(delta_sensitivity_new,tf.transpose(delta_sensitivity_new))
 
         if self._state_is_tuple:
-            new_state=KernelRNNStateTuple(h_new,h_hat_new,Theta_new,Gamma_new,input_trace_new,
+            new_state=KeRNLStateTuple(h_new,h_hat_new,Theta_new,Gamma_new,input_trace_new,
                                           recurrent_trace_new,delta_sensitivity_new)
         if self._output_is_tuple:
-            new_output=KernelRNNOutputTuple(h_new,h_hat_new,Theta_new,Gamma_new,input_trace_new,
+            new_output=KeRNLOutputTuple(h_new,h_hat_new,Theta_new,Gamma_new,input_trace_new,
                                           recurrent_trace_new,delta_sensitivity_new)
         else:
             new_output=h_new
