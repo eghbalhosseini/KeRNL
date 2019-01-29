@@ -145,7 +145,7 @@ class KeRNLCell_v1(tf.contrib.rnn.RNNCell):
 
         # temporal_filter
         if temporal_filter_initializer is None:
-            self._temporal_filter_initializer=_temporal_filter_initializer
+            self._temporal_filter_initializer=tf.initializers.random_uniform(maxval=1/self._time_steps)
         else:
             self._temporal_filter_initializer=temporal_filter_initializer
 
@@ -221,7 +221,7 @@ class KeRNLCell_v1(tf.contrib.rnn.RNNCell):
         if self._linear is None:
             self._linear = _Linear([inputs, h],
                                     self._num_units,
-                                    True,
+                                    False,
                                     kernel_initializer=self._kernel_initializer,
                                     bias_initializer=self._bias_initializer)
 
@@ -250,7 +250,7 @@ class KeRNLCell_v1(tf.contrib.rnn.RNNCell):
         pre_activation=self._activation(g_new) # size : batch*num_units
         activation_gradients=tf.gradients(pre_activation,g_new)[0] # convert list to a tensor
         eligibility_trace_update=tf.einsum("un,uv->unv",activation_gradients,array_ops.concat([inputs,h],1))
-
+        logging.warn("%s: eligibility_trace_update ", eligibility_trace_update.get_shape())
         #  add changes to new eligibility_trace
         kernel_decay=tf.expand_dims(self._eligibility_filter(-temporal_filter),axis=-1)
         eligibility_trace_decay=tf.multiply(kernel_decay,eligibility_trace)
