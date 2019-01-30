@@ -51,7 +51,7 @@ tf.logging.set_verbosity(old_v)
 # Training Parameters
 weight_learning_rate = 1e-1 # learning rate for weights in the network
 tensor_learning_rate = 1e-5 # learning rate for sensitivity tensor and temporal filter tensor
-training_steps = 5000
+training_steps = 50
 batch_size = 50
 display_step = 10
 test_len=128
@@ -220,10 +220,11 @@ with graph.as_default():
 
     # write graph into tensorboard
 tb_writer = tf.summary.FileWriter(log_dir,graph)
+print('graph saved to '+log+dir)
 # run a training session
 with tf.Session(graph=graph) as sess:
     sess.run(init)
-    for step in range(1,100):#range(1,training_steps+1):
+    for step in range(1,training_steps+1):
         batch_x, batch_y = mnist.train.next_batch(batch_size)
         batch_x=batch_x.reshape((batch_size,timesteps,num_input))
 
