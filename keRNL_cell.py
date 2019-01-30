@@ -2,7 +2,7 @@
 
 This module provides a copy of kernel RNN cells.
 Eghbal Hosseini - 2019-01-23
-
+testing adding new changes
 
 """
 from __future__ import absolute_import
