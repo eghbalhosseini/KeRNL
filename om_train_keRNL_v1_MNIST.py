@@ -48,10 +48,10 @@ eval_data = mnist.test.images  # Returns np.array
 eval_labels = np.asarray(mnist.test.labels, dtype=np.int32)
 tf.logging.set_verbosity(old_v)
 ################################################
-# Training Parameters
+# Training Parameters and save location
 weight_learning_rate = 1e-8 # learning rate for weights in the network
 tensor_learning_rate = 1e-5 # learning rate for sensitivity tensor and temporal filter tensor
-training_steps = 50
+training_steps = 20
 batch_size = 50
 display_step = 10
 test_len=128
@@ -63,7 +63,8 @@ num_hidden = 100 # hidden layer num of features
 num_classes = 10 # MNIST total classes (0-9 digits)
 perturbation_std=1e-3
 
-log_dir = "logs/kernel_rnn_v1/two_optimizaer/MNIST_gc_%d_eta_m_%d_eta_%d_batch_%d_run_%s" %(grad_clip,tensor_learning_rate,weight_learning_rate,batch_size, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/kernel_rnn_v1/two_optimizaer/MNIST_gc_%d_eta_m_%d_eta_%d_batch_%d_run_%s"
+ %(grad_clip,tensor_learning_rate,weight_learning_rate,batch_size, datetime.now().strftime("%Y%m%d_%H%M"))
 Path(log_dir).mkdir(exist_ok=True, parents=True)
 filelist = [ f for f in os.listdir(log_dir) if f.endswith(".local") ]
 for f in filelist:
@@ -84,6 +85,7 @@ def kernel_RNN_v1(x, weights, biases):
     # Linear activation, using rnn inner loop last output
     return tf.matmul(kernel_outputs[:,-1,:], weights['out']) + biases['out'], kernel_states
 ################################################
+# define tensorflow graph for computation
 tf.reset_default_graph()
 graph=tf.Graph()
 with graph.as_default():
@@ -167,15 +169,18 @@ with graph.as_default():
     weight_update=tf.transpose(tf.reduce_mean(tf.multiply(states.eligibility_trace,tf.expand_dims(weight_update_aux,axis=-1)),axis=0))
 
     #2- gradient for output weight
-    grad_cost_to_output_weight=tf.gradients(loss_output_prediction,trainables[output_weight_index], name= 'grad_cost_to_output_weight')
-    grad_cost_to_output_bias=tf.gradients(loss_output_prediction,trainables[output_addition_index], name= 'grad_cost_to_output_bias')
+    grad_cost_to_output_layer=tf.gradients(loss_output_prediction,[trainables[output_weight_index],trainables[output_addition_index]], name= 'grad_cost_to_output_layer')
+    #grad_cost_to_output_bias=tf.gradients(loss_output_prediction,trainables[output_addition_index], name= 'grad_cost_to_output_bias')
     # zip gradients and vars
-    weight_grads_and_vars=list(zip([weight_update,grad_cost_to_output_weight[-1],grad_cost_to_output_bias[-1]],weight_trainables))
+    weight_grads_and_vars=list(zip([weight_update,grad_cost_to_output_layer[0],grad_cost_to_output_layer[1]],weight_trainables))
     # Apply gradient Clipping to recurrent weights
     cropped_weight_grads_and_vars=[(tf.clip_by_norm(grad, grad_clip),var) if  np.unicode_.find(var.name,'output')==-1 else
                             (grad,var) for grad,var in weight_grads_and_vars]
+
     # apply gradients
     weight_train_op = weight_optimizer.apply_gradients(cropped_weight_grads_and_vars)
+    # create a train operation
+    train_op=tf.group(tensor_train_op,weight_train_op)
 
     ## Evaluate model (with test logits, for dropout to be disabled)
     correct_pred = tf.equal(tf.argmax(prediction, 1), tf.argmax(Y, 1))
@@ -198,8 +203,8 @@ with graph.as_default():
 
     # weight training parameters
     tf.summary.histogram('weight_updates',weight_update+1e-10)
-    tf.summary.histogram('output_weight_updates',grad_cost_to_output_weight[-1]+1e-10)
-    tf.summary.histogram('output_bias_updates',grad_cost_to_output_bias[-1]+1e-10)
+    tf.summary.histogram('output_weight_updates',grad_cost_to_output_layer[0]+1e-10)
+    tf.summary.histogram('output_bias_updates',grad_cost_to_output_layer[1]+1e-10)
     tf.summary.histogram('weights', trainables[kernel_index]+1e-10)
     tf.summary.histogram('output_weights', trainables[output_weight_index]+1e-10)
     tf.summary.histogram('output_addition', trainables[output_addition_index]+1e-10)
@@ -216,11 +221,12 @@ with graph.as_default():
 
     # save training
     saver = tf.train.Saver()
-    ############################################################################
 
-    # write graph into tensorboard
+############################################################################
+# write graph into tensorboard
 tb_writer = tf.summary.FileWriter(log_dir,graph)
 print('graph saved to '+log_dir)
+############################################################################
 # run a training session
 with tf.Session(graph=graph) as sess:
     sess.run(init)
@@ -229,10 +235,8 @@ with tf.Session(graph=graph) as sess:
         batch_x=batch_x.reshape((batch_size,timesteps,num_input))
 
         # run optimizer
-        tensor_opt, tensor_loss,weight_op,weight_loss,acc_train=sess.run([tensor_train_op,loss_state_prediction,
-                                          weight_train_op,loss_output_prediction,accuracy],
-                                         feed_dict={X:batch_x, Y:batch_y})
-
+        train_opt, tensor_loss,weight_loss,acc_train=sess.run([train_op,loss_state_prediction,loss_output_prediction,accuracy],
+                                                              feed_dict={X:batch_x, Y:batch_y})
         # run summaries
         merged_summary=sess.run(merged_summary_op,feed_dict={X:batch_x, Y:batch_y})
         tb_writer.add_summary(merged_summary, global_step=step)
