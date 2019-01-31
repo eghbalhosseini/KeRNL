@@ -12,4 +12,4 @@
 
 module add openmind/singularity
 export SINGULARITY_CACHEDIR=/om/user/`whoami`/simg_images
-singularity exec -B /om:/om /om/user/`whoami`/simg_images/tensorflow-1.12.0-py3.simg /usr/bin/python -c "import tensorflow as tf"
+singularity exec -B /om:/om /om/user/`whoami`/simg_images/tensorflow-1.12.0-py3.simg /usr/bin/python -c "import tensorflow as tf; print(tf.__version__)"

@@ -39,3 +39,9 @@ Thumbs.db
 #tensorflow events#
 #################
 *.local
+
+##################
+#openmind events#
+#################
+*.pyc
+*.out
