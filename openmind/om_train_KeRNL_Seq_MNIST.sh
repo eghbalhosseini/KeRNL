@@ -1,5 +1,5 @@
 #!/bin/sh
-#SBATCH --output=run_training_KeRNL.out
+#SBATCH --output=om_result_train_KeRNL_v1_MNIST.out
 #SBATCH -c 4
 #SBATCH --ntask=1
 #SBATCH --mem-per-cpu 15000
@@ -7,8 +7,6 @@
 #SBATCH --exclude node017,node018
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=ehoseini@mit.edu
-
-#singularity shell docker://tensorflow/tensorflow:1.12.0-py3
 
 module add openmind/singularity
 export SINGULARITY_CACHEDIR=/om/user/`whoami`/simg_images
