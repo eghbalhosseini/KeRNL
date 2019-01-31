@@ -55,7 +55,7 @@ training_steps = 50
 batch_size = 50
 display_step = 10
 test_len=128
-grad_clip=100000
+grad_clip=2
 # Network Parameters
 num_input = 1 # MNIST data input (img shape: 28*28)
 timesteps = 28*28 # timesteps
