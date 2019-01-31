@@ -51,7 +51,7 @@ tf.logging.set_verbosity(old_v)
 # Training Parameters and save location
 weight_learning_rate = 1e-8 # learning rate for weights in the network
 tensor_learning_rate = 1e-5 # learning rate for sensitivity tensor and temporal filter tensor
-training_steps = 20
+training_steps = 5000
 batch_size = 50
 display_step = 10
 test_len=128
