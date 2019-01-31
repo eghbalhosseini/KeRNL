@@ -1,8 +1,8 @@
 #!/bin/sh
 #SBATCH --output=run_training_KeRNL.out
-#SBATCH -c 12
+#SBATCH -c 4
 #SBATCH --ntask=1
-#SBATCH --mem-per-cpu 15000
+#SBATCH --mem-per-cpu 1500
 #SBATCH --time=00-01:00:00
 #SBATCH --exclude node017,node018
 #SBATCH --mail-type=ALL
