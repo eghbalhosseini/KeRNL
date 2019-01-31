@@ -10,4 +10,4 @@
 
 module add openmind/singularity
 export SINGULARITY_CACHEDIR=/om/user/`whoami`/simg_images
-singularity exec -B /om:/om /om/user/`whoami`/simg_images/tensorflow-1.12.0-py3.simg /usr/bin/python ~/MyCodes/KeRNL/om_train_KeRNL_v1_MNIST.py
+singularity exec -B /om:/om /om/user/`whoami`/simg_images/tensorflow-1.12.0-py3.simg /usr/bin/python ~/MyCodes/KeRNL/om_train_keRNL_v1_MNIST.py
