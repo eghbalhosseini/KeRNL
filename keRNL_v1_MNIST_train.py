@@ -220,7 +220,7 @@ with graph.as_default():
 
     # write graph into tensorboard
 tb_writer = tf.summary.FileWriter(log_dir,graph)
-print('graph saved to '+log+dir)
+print('graph saved to '+log_dir)
 # run a training session
 with tf.Session(graph=graph) as sess:
     sess.run(init)
