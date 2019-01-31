@@ -1,5 +1,5 @@
 #!/bin/sh
-#SBATCH --output=run_training_KeRNL.out
+#SBATCH --output=result_training_KeRNL.out
 #SBATCH -c 4
 #SBATCH --ntask=1
 #SBATCH --mem-per-cpu 1500
