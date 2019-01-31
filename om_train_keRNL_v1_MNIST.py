@@ -63,7 +63,7 @@ num_hidden = 100 # hidden layer num of features
 num_classes = 10 # MNIST total classes (0-9 digits)
 perturbation_std=1e-3
 
-log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/kernel_rnn_v1/two_optimizaer/MNIST_gc_%d_eta_m_%d_eta_%d_batch_%d_run_%s" %(grad_clip,tensor_learning_rate,weight_learning_rate,batch_size, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/kernel_rnn_v1/two_optimizaer/MNIST_gc_%.1e_eta_m_%.1e_eta_%.1e_batch_%.1e_run_%s" %(grad_clip,tensor_learning_rate,weight_learning_rate,batch_size, datetime.now().strftime("%Y%m%d_%H%M"))
 Path(log_dir).mkdir(exist_ok=True, parents=True)
 filelist = [ f for f in os.listdir(log_dir) if f.endswith(".local") ]
 for f in filelist:
