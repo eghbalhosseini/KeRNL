@@ -60,4 +60,4 @@ batch_size=batch_size_dict[variable_condition[1]]
 num_hidden=num_hidden_dict[variable_condition[2]]
 grad_clip=grad_clip_dict[variable_condition[3]]
 
-print('training_steps: {}, batch_size: { }, num_hidden: { }, grad_clip: { }'.format(training_steps, batch_size, num_hidden, grad_clip))
+print('training_steps: {}, batch_size: {}, num_hidden: {}, grad_clip: {}'.format(training_steps, batch_size, num_hidden, grad_clip))
