@@ -53,7 +53,7 @@ num_of_variables=4
 # create an iterator and use it to determine the values for parameters
 variable_combinations=list(itertools.product('ABC', repeat=num_of_variables))
 # use input system arg to determine what element to use
-variable_condition=variable_condition[sys.argv[1]-1]
+variable_condition=variable_combinations[sys.argv[1]-1]
 # determine the value for each variable
 training_steps=training_steps_dict[variable_condition[0]]
 batch_size=batch_size_dict[variable_condition[1]]

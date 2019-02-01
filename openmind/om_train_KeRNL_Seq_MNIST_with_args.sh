@@ -8,7 +8,7 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=ehoseini@mit.edu
 #SBATCH --array=1-81
-#SBATCH --output=om_result_train_KeRNL_v1_MNIST_$SLURM_ARRAY_TASK_ID.out
+#SBATCH --output=/outputs/om_result_train_KeRNL_v1_MNIST_%a.out
 
 module add openmind/singularity
 export SINGULARITY_CACHEDIR=/om/user/`whoami`/simg_images
