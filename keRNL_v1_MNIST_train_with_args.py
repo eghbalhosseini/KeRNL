@@ -5,7 +5,7 @@ import hashlib
 import numbers
 import matplotlib.cm as cm
 from sys import getsizeof
-import sys 
+import sys
 from datetime import datetime
 from pathlib import Path
 import os
