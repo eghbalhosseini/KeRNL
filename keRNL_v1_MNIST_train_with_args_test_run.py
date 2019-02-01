@@ -11,6 +11,8 @@ from pathlib import Path
 import os
 from pandas import DataFrame
 from IPython.display import HTML
+import itertools
+
 
 # tensorflow and its dependencies
 import tensorflow as tf
