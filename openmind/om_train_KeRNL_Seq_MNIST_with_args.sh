@@ -1,8 +1,8 @@
 #!/bin/sh
 #SBATCH --output=om_result_train_KeRNL_v1_MNIST.out
-#SBATCH -c 8
+#SBATCH -c 1
 #SBATCH --ntask=1
-#SBATCH --mem-per-cpu 20000
+#SBATCH --mem-per-cpu 1000
 #SBATCH --time=00-10:00:00
 #SBATCH --exclude node017,node018
 #SBATCH --mail-type=ALL
