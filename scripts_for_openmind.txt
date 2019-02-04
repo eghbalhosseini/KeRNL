@@ -1,0 +1,1 @@
+sshfs ehoseini@openmind7.mit.edu:'/om/user/ehoseini/MyData/KeRNL'  ~/Desktop/openmind/
