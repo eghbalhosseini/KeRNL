@@ -89,7 +89,7 @@ def _calculate_prob_spikes(x,threshold):
     logging.warn("%s: Please use float ", shape_x)
     x_aux=tf.random_uniform(shape=[shape_x[0].value,shape_x[1].value],dtype=tf.float32)
     logging.warn("%s: Please use float ", x_aux.get_shape())
-    res_out=tf.divide(tf.negative(tf.sign(x_aux-threshold)-1),2)
+    res_out=tf.cast(tf.divide(tf.negative(tf.sign(x_aux-threshold)-1),2),tf.float32)
 
     return res_out
 ###########################################
@@ -232,8 +232,12 @@ class conductance_spike_Cell(tf.contrib.rnn.RNNCell):
     # modify alpha so that only affect neurons that are beyond their refractory period
     alpha_vec=tf.scalar_mul(alpha,eligilible_update)+not_eligilible_update
     v_mem_update=tf.add(tf.multiply(alpha_vec,v_mem),tf.multiply(tf.multiply(1-alpha_vec,self.R_mem),I_syn_new))
+    # update threshold
+    b_threshold_new = tf.add(tf.scalar_mul(rho,b_threshold), tf.scalar_mul(1-rho,spike))
+    Beta_new = self.beta_baseline+ tf.multiply(self.beta_coeff,b_threshold_new)
+
     # calculate crossings an new spikes
-    spike_new=self._calculate_crossing(v_mem_update,Beta)
+    spike_new=self._calculate_crossing(v_mem_update,Beta_new)
 
     t_reset_new=tf.add(tf.multiply(spike_new,self.tau_refract),t_update)
     v_reseting=tf.multiply(v_mem_update,spike_new)
@@ -252,7 +256,7 @@ class conductance_spike_Cell(tf.contrib.rnn.RNNCell):
     if self._output_is_tuple:
         new_output = LSNNOutputTuple( v_mem_new,spike_new, S_new,Beta_new,b_threshold_new,t_reset_new )
     else:
-        new_output = v_mem_new
+        new_output = spike_new
     return new_output, new_state
 
 ###########################################
@@ -328,7 +332,7 @@ class output_spike_cell(tf.contrib.rnn.RNNCell):
 ## define LSNNOutcell
 class input_spike_cell(tf.contrib.rnn.RNNCell):
     def __init__(self,
-               num_units=40,
+               num_units=80,
                reuse=None,
                kernel_initializer=None,
                bias_initializer=None):
