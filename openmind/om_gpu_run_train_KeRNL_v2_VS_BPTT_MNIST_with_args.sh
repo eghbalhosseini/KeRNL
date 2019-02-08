@@ -11,4 +11,4 @@
 
 module add openmind/singularity
 export SINGULARITY_CACHEDIR=/om/user/`whoami`/simg_images
-singularity exec --nv -B /om:/om /om/user/`whoami`/simg_images/tensorflow-latest-gpu-py3.simg /usr/bin/python ~/MyCodes/KeRNL/om_train_keRNL_v2_VS_BPTT_MNIST_with_args.py $SLURM_ARRAY_TASK_ID
+singularity exec --nv -B /om:/om /om/user/`whoami`/st/tensorflow-1.13.0rc0-gpu-py3.img /usr/bin/python ~/MyCodes/KeRNL/om_train_keRNL_v2_VS_BPTT_MNIST_with_args.py $SLURM_ARRAY_TASK_ID
