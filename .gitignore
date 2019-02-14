@@ -45,3 +45,5 @@ Thumbs.db
 #################
 *.pyc
 *.out
+*.out*
+*.meta*

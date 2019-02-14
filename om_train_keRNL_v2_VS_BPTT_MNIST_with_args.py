@@ -3,15 +3,13 @@ import numpy as np
 import collections
 import hashlib
 import numbers
-import matplotlib.cm as cm
 from sys import getsizeof
 from datetime import datetime
 from pathlib import Path
 import os
-from pandas import DataFrame
-from IPython.display import HTML
 import re
 import itertools
+import sys
 
 # tensorflow and its dependencies
 import tensorflow as tf
@@ -53,7 +51,11 @@ num_of_variables=4
 # create an iterator and use it to determine the values for parameters
 variable_combinations=list(itertools.product('ABC', repeat=num_of_variables))
 # use input system arg to determine what element to use
-variable_condition=variable_combinations[int(sys.argv[1])-1]
+if len(sys.argv)>1:
+    variable_condition=variable_combinations[int(sys.argv[1])-1]
+else:
+    variable_condition=variable_combinations[0]
+
 # determine the value for each variable
 training_steps=training_steps_dict[variable_condition[0]]
 batch_size=batch_size_dict[variable_condition[1]]
