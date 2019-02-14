@@ -3,7 +3,13 @@
 This module provides a copy of different types of spiking cells.
 Eghbal Hosseini - 2019-02-07
 
-version 0.0 : (2019-02-07)
+version 1.0 : (2019-02-13)
+    - additional type of cell is introduced,
+        - context spiking cell, it turns from 0 to 1 upon crossing a threshold
+    -  removed  bais term in the linear mixture of inputs and recurrent spikes
+
+
+version 0.0 : (2019-02-13)
     - 3 types of cell are introduced,
         - spiking input cell : the probability of firing depends on the input
         - conductance spiking cell: a LIF neuron with spike adaptation.
@@ -59,25 +65,31 @@ from tensorflow.contrib import slim
 ###### functions used in the model ########
 ###########################################
 # crossing function
-def _calcualte_crossings(x,threshold,gradient_gamma):
+
+@tf.custom_gradient
+def _calcualte_crossings(x):
     """input :x : a 2D tensor with batch x n
     outputs a tensor with the same size as x
     and values of 0 or 1 depending on comparison between
     x and threshold"""
-    @tf.custom_gradient
-    def crossings(x):
-        dtype=x.dtype
-        shape=x.get_shape()
-        res=tf.greater_equal(x,threshold)
-        def grad(dy):
-            # calculate 1-|x|
-            temp=1-tf.abs(x)
-            dyres=tf.scalar_mul(gradient_gamma,tf.maximum(temp,0.0))
-            return dyres
-        return tf.cast(res,dtype=dtype), grad
-    z=crossings(x)
-    return z
+    dtype=x.dtype
+    res=tf.greater_equal(x,0.0)
+    def grad(dy):
+        # calculate 1-|x|
+        temp=1-tf.abs(x)
+        dyres=tf.scalar_mul(0.3,tf.maximum(temp,0.0))
+        return dyres
+    return tf.cast(res,dtype=dtype), grad
 
+#def _calcualte_crossings(x,threshold,gradient_gamma):
+#    """input :x : a 2D tensor with batch x n
+#    outputs a tensor with the same size as x
+#    and values of 0 or 1 depending on comparison between
+#    x and threshold"""
+#    dtype=x.dtype
+#    shape=x.get_shape()
+#    res=tf.greater_equal(x,threshold)
+#    return tf.cast(res,dtype=dtype)
 # function for encoding an analog variable to probability of spike
 # the threshold is between [0,1]
 def _calculate_prob_spikes(x,threshold):
@@ -221,7 +233,7 @@ class conductance_spike_Cell(tf.contrib.rnn.RNNCell):
         logging.error("this cell only accept state as tuple ", self)
 
     if self._linear is None:
-        self._linear = _Linear([inputs,S],self._num_units,True,
+        self._linear = _Linear([inputs,S],self._num_units,False,
                                     kernel_initializer=self._kernel_initializer,
                                     bias_initializer=self._bias_initializer)
 
@@ -245,7 +257,9 @@ class conductance_spike_Cell(tf.contrib.rnn.RNNCell):
     Beta_new = self.beta_baseline+ tf.multiply(self.beta_coeff,b_threshold_new)
 
     # calculate crossings an new spikes
-    spike_new=self._calculate_crossing(v_mem_update,Beta_new,self.gradient_gamma)
+    # first get the normalized membrane potential
+    v_mem_norm=tf.divide(tf.subtract(v_mem_update,Beta_new),Beta_new)
+    spike_new=self._calculate_crossing(v_mem_norm)
 
     t_reset_new=tf.add(tf.multiply(spike_new,self.tau_refract),t_update)
     v_reseting=tf.multiply(v_mem_update,spike_new)
@@ -362,4 +376,36 @@ class input_spike_cell(tf.contrib.rnn.RNNCell):
         new_spikes=self._calculate_prob_spikes(spike_state,inputs)
         new_state =  new_spikes
         new_output = new_spikes
+        return new_output, new_state
+
+
+###########################################
+#### define context input cell ############
+###########################################
+
+class context_input_spike_cell(tf.contrib.rnn.RNNCell):
+    def __init__(self,
+               num_units=1,
+               reuse=None,
+               context_switch=784.0,
+               kernel_initializer=None,
+               bias_initializer=None):
+        super(context_input_spike_cell, self).__init__(_reuse=reuse)
+        self._num_units = num_units
+        self._kernel_initializer = kernel_initializer
+        self._bias_initializer = bias_initializer
+        self._calculate_prob_spikes = _calculate_prob_spikes
+        self._context_switch=context_switch
+
+    @property
+    def state_size(self):
+        return  self._num_units
+    @property
+    def output_size(self):
+        return  self._num_units
+
+    def call(self, inputs, state):
+        # calculate new Isyn = W*S
+        new_state=tf.add(tf.cast(state,tf.float32),tf.cast(inputs,tf.float32))
+        new_output = tf.cast(tf.greater(new_state,self._context_switch),tf.float32)
         return new_output, new_state
