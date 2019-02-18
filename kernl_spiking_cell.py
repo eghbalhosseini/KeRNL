@@ -96,9 +96,9 @@ def _calculate_prob_spikes(x,threshold):
     """
     shape_x=x.get_shape()
     #
-    logging.warn("%s: Please use float ", shape_x)
+    #logging.warn("%s: Please use float ", shape_x)
     x_aux=tf.random_uniform(shape=[shape_x[0].value,shape_x[1].value],dtype=tf.float32)
-    logging.warn("%s: Please use float ", x_aux.get_shape())
+    #logging.warn("%s: Please use float ", x_aux.get_shape())
     res_out=tf.cast(tf.divide(tf.negative(tf.sign(x_aux-threshold)-1),2),tf.float32)
 
     return res_out
