@@ -42,7 +42,7 @@ import keRNL_cell_v2
 # logic for getting the variables from 1 system argument
 # each dictionary represent the set of values for variable
 # on each call an iterator is build and a
-training_steps_dict={"A":5000,"B":5000,"C":5000}
+training_steps_dict={"A":1000,"B":1000,"C":1000}
 batch_size_dict={"A":100,"B":100,"C":100}
 num_hidden_dict={"A":200,"B":200,"C":200}
 grad_clip_dict={"A":100,"B":100,"C":100}
@@ -169,7 +169,7 @@ with graph.as_default():
         keRNL_correct_pred = tf.equal(tf.argmax(keRNL_prediction, 1), tf.argmax(Y, 1))
         keRNL_accuracy = tf.reduce_mean(tf.cast(keRNL_correct_pred, tf.float32))
         # states
-        keRNL_loss_state_prediction=tf.losses.mean_squared_error(tf.subtract(keRNL_states.h_hat, keRNL_states.h),tf.matmul(keRNL_states.Gamma,trainables[keRNL_sensitivity_tensor_index]))
+        keRNL_loss_state_prediction=tf.losses.mean_squared_error(tf.subtract(keRNL_states.h_hat, keRNL_states.h),tf.matmul(keRNL_states.Theta,trainables[keRNL_sensitivity_tensor_index]))
         # define optimizers
         keRNL_weight_optimizer = tf.train.RMSPropOptimizer(learning_rate=weight_learning_rate)
         keRNL_tensor_optimizer = tf.train.RMSPropOptimizer(learning_rate=tensor_learning_rate)
