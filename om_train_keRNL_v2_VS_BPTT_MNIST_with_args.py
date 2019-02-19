@@ -42,7 +42,7 @@ import keRNL_cell_v2
 # logic for getting the variables from 1 system argument
 # each dictionary represent the set of values for variable
 # on each call an iterator is build and a
-training_steps_dict={"A":1000,"B":1000,"C":1000}
+training_steps_dict={"A":10000,"B":10000,"C":10000}
 batch_size_dict={"A":100,"B":100,"C":100}
 num_hidden_dict={"A":200,"B":200,"C":200}
 grad_clip_dict={"A":100,"B":100,"C":100}
