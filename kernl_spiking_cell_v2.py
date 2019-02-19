@@ -3,6 +3,8 @@
 
 This module provides a copy of different types of kernl spiking cells.
 Eghbal Hosseini - 2019-02-13
+version 2.0 : (2019-02-18)
+    - the noise perturbation and state update are updated.
 
 version 1.0 : (2019-02-13)
     - 4 types of cell are introduced,
@@ -114,8 +116,8 @@ def _calculate_prob_spikes(x,threshold):
 ###### definition of tuples for cells #####
 ###########################################
 
-_LSNNStateTuple = collections.namedtuple("LSNNStateTuple", ("v_mem","v_mem_hat","spike","spike_hat","S","S_hat","Theta","Beta","Beta_hat","b_threshold","t_reset","t_reset_hat","eligibility_trace"))
-_LSNNOutputTuple = collections.namedtuple("LSNNOutputTuple", ("v_mem","v_mem_hat","spike","spike_hat","S","S_hat","Theta","Beta","Beta_hat","b_threshold","t_reset","t_reset_hat","eligibility_trace"))
+_LSNNStateTuple = collections.namedtuple("LSNNStateTuple", ("v_mem","v_mem_hat","spike","S","Theta","Beta","b_threshold","t_reset","eligibility_trace"))
+_LSNNOutputTuple = collections.namedtuple("LSNNOutputTuple", ("v_mem","v_mem_hat","spike","S","Theta","Beta","b_threshold","t_reset","eligibility_trace"))
 
 
 class LSNNStateTuple(_LSNNStateTuple):
@@ -128,7 +130,7 @@ class LSNNStateTuple(_LSNNStateTuple):
 
   @property
   def dtype(self):
-    (v_mem,v_mem_hat,spike,spike_hat,S,S_hat,Theta,Beta,Beta_hat,b_threshold,t_reset,t_reset_hat,eligibility_trace) = self
+    (v_mem,v_mem_hat,spike,S,Theta,Beta,b_threshold,t_reset,eligibility_trace) = self
     if v_mem.dtype != spike.dtype:
       raise TypeError("Inconsistent internal state: %s vs %s" %
                       (str(v_mem.dtype), str(spike.dtype)))
@@ -142,7 +144,7 @@ class LSNNOutputTuple(_LSNNOutputTuple):
 
   @property
   def dtype(self):
-    (v_mem,v_mem_hat,spike,spike_hat,S,S_hat,Theta,Beta,Beta_hat,b_threshold,t_reset,t_reset_hat,eligibility_trace) = self
+    (v_mem,v_mem_hat,spike,S,Theta,Beta,b_threshold,t_reset,eligibility_trace) = self
     if v_mem.dtype != spike.dtype:
       raise TypeError("Inconsistent internal state: %s vs %s" %
                       (str(v_mem.dtype), str(spike.dtype)))
@@ -240,10 +242,6 @@ class kernl_spike_Cell(tf.contrib.rnn.RNNCell):
                           self._num_units,
                           self._num_units,
                           self._num_units,
-                          self._num_units,
-                          self._num_units,
-                          self._num_units,
-                          self._num_units,
                           np.array([self._num_units,self._num_units+self._num_inputs])) if self._state_is_tuple else self._num_units)
 
 
@@ -257,11 +255,7 @@ class kernl_spike_Cell(tf.contrib.rnn.RNNCell):
                           self._num_units,
                           self._num_units,
                           self._num_units,
-                          self._num_units,
-                          self._num_units,
-                          self._num_units,
-                          self._num_units,
-                          np.array([self._num_units,self._num_units+self._num_inputs])) if self._state_is_tuple else self._num_units)
+                          np.array([self._num_units,self._num_units+self._num_inputs])) if self._output_is_tuple else self._num_units)
 
 
   def call(self, inputs, state):
@@ -272,15 +266,11 @@ class kernl_spike_Cell(tf.contrib.rnn.RNNCell):
           v_mem:            [batch_size x self.state_size]`
           v_mem_hat:        [batch_size x self.state_size]`
           spike:            [batch_size x self.state_size]`
-          spike_hat         [batch_size x self.state_size]`
           S:                [batch_size x self.state_size]`
-          S_hat:            [batch_size x self.state_size]`
           Theta             [batch_size x self.state_size]`
           Beta:             [batch_size x self.state_size]`
-          Beta_hat          [batch_size x self.state_size]`
           b_threshold       [batch_size x self.state_size]`
           t_reset           [batch_size x self.state_size]`
-          t_reset_hat       [batch_size x self.state_size]`
           eligibility_trace [batch_size x self.state_size x (self.state_size+self.input_size)]
     Returns:
       A pair containing the new output, and the new state as SNNStateTuple
@@ -297,7 +287,7 @@ class kernl_spike_Cell(tf.contrib.rnn.RNNCell):
 
 
     if self._state_is_tuple:
-        v_mem,v_mem_hat,spike,spike_hat,S,S_hat,Theta,Beta,Beta_hat,b_threshold,t_reset,t_reset_hat, eligibility_trace = state
+        v_mem,v_mem_hat,spike,S,Theta,Beta,b_threshold,t_reset, eligibility_trace = state
     else:
         logging.error("this cell only accept state as tuple ", self)
 
@@ -354,40 +344,23 @@ class kernl_spike_Cell(tf.contrib.rnn.RNNCell):
 
         Theta_new=tf.add(tf.multiply(self._eligibility_filter(-temporal_filter),Theta),psi_new)
 
-        I_syn_new_hat=self._linear([inputs,S_hat+psi_new])
-        # Implement LIF dynamics
-        t_subtract_hat= tf.subtract(t_reset_hat,self.dt)
-        t_update_hat=tf.clip_by_value(t_subtract_hat,0.0,100)
+        I_syn_new_hat=self._linear([inputs,S+psi_new])
         # find which units are beyond their refractory period
-        eligilible_update_hat=tf.cast(tf.less(t_update_hat,self.dt),tf.float32)
-        not_eligilible_update_hat=1-eligilible_update_hat
         # modify alpha so that only affect neurons that are beyond their refractory period
-        alpha_vec_hat=tf.scalar_mul(alpha,eligilible_update_hat)+not_eligilible_update_hat
-        v_mem_update_hat=tf.add(tf.multiply(alpha_vec_hat,v_mem_hat),tf.multiply(tf.multiply(1-alpha_vec_hat,self.R_mem),I_syn_new_hat))
+        v_mem_update_hat=tf.add(tf.multiply(alpha_vec,v_mem_hat),tf.multiply(tf.multiply(1-alpha_vec,self.R_mem),I_syn_new_hat))
         # update threshold
-        b_threshold_new_hat = tf.add(tf.scalar_mul(rho,b_threshold), tf.scalar_mul(1-rho,spike_hat))
-        Beta_new_hat = self.beta_baseline+ tf.multiply(self.beta_coeff,b_threshold_new_hat)
         # Implement Spiking
-        v_mem_norm_hat=tf.divide(tf.subtract(v_mem_update_hat,Beta_new_hat),Beta_new_hat)
+        v_mem_norm_hat=tf.divide(tf.subtract(v_mem_update_hat,Beta_new),Beta_new)
         spike_new_hat=self._calculate_crossing(v_mem_norm_hat)
-        v_mem_norm_hat=tf.divide(tf.subtract(v_mem_update_hat,Beta_new_hat),Beta_new_hat)
-        spike_new_hat=self._calculate_crossing(v_mem_norm_hat)
-        t_reset_new_hat=tf.add(tf.multiply(spike_new_hat,self.tau_refract),t_update_hat)
         v_reseting_hat=tf.multiply(v_mem_update_hat,spike_new_hat)
         v_mem_new_hat=tf.subtract(v_mem_update_hat,v_reseting_hat)
         # update threshold
-        b_threshold_new_hat = tf.add(tf.scalar_mul(rho,b_threshold), tf.scalar_mul(1-rho,spike_hat))
-        Beta_new_hat = self.beta_baseline+ tf.multiply(self.beta_coeff,b_threshold_new_hat)
         #Implement synaptic conductance update
-        delta_hat=tf.exp(tf.negative(tf.divide(self.dt,self.tau_s)))
-        S_update_hat = tf.scalar_mul(delta_hat,S_hat)
-        S_new_hat=tf.add(S_update_hat,spike_new_hat)
-    #
     # create new output and state vectors
     if self._state_is_tuple:
-        new_state = LSNNStateTuple( v_mem_new,v_mem_new_hat,spike_new,spike_new_hat, S_new,S_new_hat,Theta_new,Beta_new,Beta_new_hat,b_threshold_new,t_reset_new,t_reset_new_hat,eligibility_trace_new )
+        new_state = LSNNStateTuple( v_mem_new,v_mem_new_hat,spike_new, S_new,Theta_new,Beta_new,b_threshold_new,t_reset_new,eligibility_trace_new )
     if self._output_is_tuple:
-        new_output = LSNNOutputTuple( v_mem_new,v_mem_new_hat,spike_new,spike_new_hat, S_new,S_new_hat,Theta_new,Beta_new,Beta_new_hat,b_threshold_new,t_reset_new,t_reset_new_hat,eligibility_trace_new )
+        new_output = LSNNOutputTuple( v_mem_new,v_mem_new_hat,spike_new, S_new,Theta_new,Beta_new,b_threshold_new,t_reset_new,eligibility_trace_new )
     else:
         new_output = spike_new
     return new_output, new_state
