@@ -11,4 +11,4 @@
 
 module add openmind/singularity
 export SINGULARITY_CACHEDIR=/om/user/`whoami`/st/
-singularity exec --nv -B /om:/om /om/user/`whoami`/st/om_image_tensorflow1-12_gpu.simg /usr/bin/python3 ~/MyCodes/KeRNL/om_train_gpu_kernl_snn_sensitivity_tensor_and_filter
+singularity exec --nv -B /om:/om /om/user/`whoami`/st/om_image_tensorflow1-12_gpu.simg /usr/bin/python3 ~/MyCodes/KeRNL/om_train_gpu_kernl_snn_sensitivity_tensor_and_filter.py
