@@ -3,6 +3,9 @@
 
 This module provides a copy of different types of kernl spiking cells.
 Eghbal Hosseini - 2019-02-13
+version 4.0 : (2019-02-20)
+    - the euler method is introduced to caluclate the membrane and input dynamics
+
 version 3.0 : (2019-02-19)
     - the noise perturbation and state update are changed.
     - rearranged how the sequence of updating happen in the while loop
@@ -318,7 +321,9 @@ class kernl_spike_Cell(tf.contrib.rnn.RNNCell):
         not_eligilible_update=1-eligilible_update
         # update v_mem
         alpha_vec=tf.scalar_mul(alpha,eligilible_update)+not_eligilible_update
-        v_mem_update=tf.add(tf.multiply(alpha_vec,v_mem),tf.multiply(tf.multiply(1-alpha_vec,self.R_mem),I_syn))
+        v_mem_delta=tf.multiply(tf.divide(tf.subtract(tf.scalar_mul(self.R_mem, I_syn),v_mem),self.tau_m),self.dt)
+        v_mem_update=tf.multiply(v_mem_delta,alpha_vec)
+        #v_mem_update=tf.add(tf.multiply(alpha_vec,v_mem),tf.multiply(tf.multiply(1-alpha_vec,self.R_mem),I_syn))
         # calculate spike
         Beta= self.beta_baseline + tf.multiply(self.beta_coeff,b_threshold)
         v_mem_norm=tf.divide(tf.subtract(v_mem_update,Beta),Beta)
@@ -333,7 +338,8 @@ class kernl_spike_Cell(tf.contrib.rnn.RNNCell):
         v_reseting=tf.multiply(v_mem_update,spike_new)
         v_mem_new=tf.subtract(v_mem_update,v_reseting)
         #Update synaptic input
-        S_update = tf.scalar_mul(delta,S)
+        S_update=tf.subtract(S,tf.divide(tf.scalar_mul(self.dt,S),self.tau_s))
+        #S_update = tf.scalar_mul(delta,S)
         S_new=tf.add(S_update,spike_new)
         # update eligibility trace
         activation_gradients=S_new
