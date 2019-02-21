@@ -234,11 +234,11 @@ class KeRNLCell_v2(tf.contrib.rnn.RNNCell):
         psi_new=self._gaussian_noise_perturbation(h,self._noise_std)
 
         # propagate data forward
-        h_new=self._activation(self._linear([inputs,h]))
+        h_new=self._activation(self._linear([inputs,h]),name='update_h')
 
         # propagate noisy data forward
-        h_hat_update=tf.add(h_hat,psi_new)
-        h_hat_new= self._activation(self._linear([inputs, h_hat_update]))
+        h_hat_update=tf.add(h_hat,psi_new,name='add_noise')
+        h_hat_new= self._activation(self._linear([inputs, h_hat_update]),name='update_noisy_h')
 
         # integrate over perturbations
         Theta_new=tf.add(tf.multiply(self._eligibility_filter(-temporal_filter),
