@@ -125,7 +125,7 @@ def _calculate_prob_spikes(x,threshold):
 ###########################################
 
 _LSNNStateTuple = collections.namedtuple("LSNNStateTuple", ("v_mem","v_mem_hat","spike","S","Theta","b_threshold","b_threshold_hat","t_reset","t_reset_hat","eligibility_trace"))
-_LSNNOutputTuple = collections.namedtuple("LSNNOutputTuple", ("v_mem","v_mem_hat","spike","S","Theta","b_threshold","t_reset","eligibility_trace","psi"))
+_LSNNOutputTuple = collections.namedtuple("LSNNOutputTuple", ("v_mem","v_mem_hat","spike","S","Theta","b_threshold","t_reset","eligibility_trace"))
 
 
 class LSNNStateTuple(_LSNNStateTuple):
@@ -152,7 +152,7 @@ class LSNNOutputTuple(_LSNNOutputTuple):
 
   @property
   def dtype(self):
-    (v_mem,v_mem_hat,spike,S,Theta,b_threshold,t_reset,eligibility_trace,psi) = self
+    (v_mem,v_mem_hat,spike,S,Theta,b_threshold,t_reset,eligibility_trace) = self
     if v_mem.dtype != spike.dtype:
       raise TypeError("Inconsistent internal state: %s vs %s" %
                       (str(v_mem.dtype), str(spike.dtype)))
@@ -262,8 +262,7 @@ class kernl_spike_Cell(tf.contrib.rnn.RNNCell):
                           self._num_units,
                           self._num_units,
                           self._num_units,
-                          np.array([self._num_units,self._num_units+self._num_inputs]),
-                          self._num_units) if self._output_is_tuple else self._num_units)
+                          np.array([self._num_units,self._num_units+self._num_inputs])) if self._output_is_tuple else self._num_units)
 
 
   def call(self, inputs, state):
@@ -309,47 +308,43 @@ class kernl_spike_Cell(tf.contrib.rnn.RNNCell):
     with tf.name_scope('update_v_mem') as scope:
         # inputs
         I_syn=self._linear([inputs,S])
-        # constant
+        psi=self._noise_perturbation(v_mem,self._noise_param)
+        I_syn_hat=self._linear([inputs,S+psi])
+        # constants
         kernel_decay=tf.expand_dims(self._eligibility_filter(-temporal_filter),axis=-1)
         Beta= self.beta_baseline + tf.multiply(self.beta_coeff,b_threshold)
         eligilible_update=tf.cast(tf.less(t_reset,self.dt),tf.float32)
-        v_mem_delta=tf.multiply(tf.multiply(tf.divide(tf.subtract(tf.scalar_mul(self.R_mem, I_syn),v_mem),self.tau_m),self.dt),eligilible_update)
-        v_mem_update=tf.add(v_mem,v_mem_delta)
-        v_mem_norm=tf.divide(tf.subtract(v_mem_update,Beta),Beta)
-        spike_new=self._calculate_crossing(v_mem_norm)
-        v_reseting=tf.multiply(v_mem_update,spike_new)
-        v_mem_new=tf.subtract(v_mem_update,v_reseting)
-        b_threshold_new=tf.add(tf.multiply(self.dt,tf.divide(b_threshold,self.tau_beta)),spike_new)
-        t_update=tf.clip_by_value(tf.subtract(t_reset,self.dt),0.0,100)
-        t_reset_new=tf.add(tf.multiply(spike_new,self.tau_refract),t_update)
-        S_update=tf.subtract(S,tf.divide(tf.scalar_mul(self.dt,S),self.tau_s))
-        S_new=tf.add(S_update,spike_new)
-        activation_gradients=S_new
-        eligibility_trace_update=tf.einsum("un,uv->unv",activation_gradients,array_ops.concat([inputs,S_new],1))
-        eligibility_trace_new=tf.add(tf.multiply(kernel_decay,eligibility_trace),eligibility_trace_update)
+        # outputs
+        test=tf.assign(v_mem,tf.add(v_mem,tf.multiply(tf.multiply(tf.divide(tf.subtract(tf.scalar_mul(self.R_mem, I_syn),v_mem),self.tau_m),self.dt),eligilible_update)))
+        tf.assign(spike,self._calculate_crossing(tf.divide(tf.subtract(v_mem,Beta),Beta)))
+        tf.assign(v_mem,tf.subtract(v_mem,tf.multiply(v_mem,spike)))
+        #
+        tf.assign(beta_threshold,tf.add(tf.multiply(self.dt,tf.divide(beta_threshold,self.tau_beta)),spike))
+        tf.assign(t_reset,tf.add(tf.clip_by_value(tf.subtract(t_reset,self.dt),0.0,100.0),tf.scalar_mul(self.tau_refract,spike)))
+        activation_gradients=tf.assign(S,tf.add(tf.subtract(S,tf.divide(tf.scalar_mul(self.dt,S),self.tau_s)),spike))
+        tf.assign(eligibility_trace,tf.add(tf.multiply(kernel_decay,eligibility_trace),
+                                           tf.einsum("un,uv->unv",activation_gradients,array_ops.concat([inputs,S_new],1))))
 
     with tf.name_scope('update_v_mem_hat') as scope:
-        psi_new=self._noise_perturbation(v_mem,self._noise_param)
-        Theta_new=tf.add(tf.multiply(self._eligibility_filter(-temporal_filter),Theta),psi_new)
-        I_syn_hat=self._linear([inputs,S+psi_new])
+        tf.assign(Theta,tf.add(tf.multiply(self._eligibility_filter(-temporal_filter),Theta),psi_new))
+        # constants
+        kernel_decay=tf.expand_dims(self._eligibility_filter(-temporal_filter),axis=-1)
+        Beta= self.beta_baseline + tf.multiply(self.beta_coeff,b_threshold)
         eligilible_update_hat=tf.cast(tf.less(t_reset_hat,self.dt),tf.float32)
-        Beta_hat= self.beta_baseline + tf.multiply(self.beta_coeff,b_threshold_hat)
-        v_mem_delta_hat=tf.multiply(tf.multiply(tf.divide(tf.subtract(tf.scalar_mul(self.R_mem, I_syn_hat),v_mem_hat),self.tau_m),self.dt),eligilible_update_hat)
-        v_mem_update_hat=tf.add(v_mem_hat,v_mem_delta_hat)
-        v_mem_norm_hat=tf.divide(tf.subtract(v_mem_update_hat,Beta_hat),Beta_hat)
-        spike_new_hat=self._calculate_crossing(v_mem_norm_hat)
-        v_reseting_hat=tf.multiply(v_mem_update_hat,spike_new_hat)
-        v_mem_new_hat=tf.subtract(v_mem_update_hat,v_reseting_hat)
-        b_threshold_new_hat=tf.add(tf.multiply(self.dt,tf.divide(b_threshold_hat,self.tau_beta)),spike_new_hat)
-        t_update_hat=tf.clip_by_value(tf.subtract(t_reset_hat,self.dt),0.0,100)
-        t_reset_new_hat=tf.add(tf.multiply(spike_new_hat,self.tau_refract),t_update_hat)
+        # outputs
+        test=tf.assign(v_mem_hat,tf.add(v_mem_hat,tf.multiply(tf.multiply(tf.divide(tf.subtract(tf.scalar_mul(self.R_mem, I_syn_hat),v_mem_hat),self.tau_m),self.dt),eligilible_update_hat)))
+        tf.assign(spike_hat,self._calculate_crossing(tf.divide(tf.subtract(v_mem_hat,Beta),Beta)))
+        tf.assign(v_mem_hat,tf.subtract(v_mem_hat,tf.multiply(v_mem_hat,spike)))
+        #
+        tf.assign(beta_threshold_hat,tf.add(tf.multiply(self.dt,tf.divide(beta_threshold_hat,self.tau_beta)),spike_hat))
+        tf.assign(t_reset_hat,tf.add(tf.clip_by_value(tf.subtract(t_reset_hat,self.dt),0.0,100.0),tf.scalar_mul(self.tau_refract,spike_hat)))
 
     if self._state_is_tuple:
-        new_state = LSNNStateTuple( v_mem_new,v_mem_new_hat,spike_new, S_new,Theta_new,b_threshold_new,b_threshold_new_hat,t_reset_new,t_reset_new_hat,eligibility_trace_new )
+        new_state = LSNNStateTuple( v_mem,v_mem_hat,spike, S,Theta,b_threshold,b_threshold_hat,t_reset,t_reset_hat,eligibility_trace )
     if self._output_is_tuple:
-        new_output = LSNNOutputTuple( v_mem_new,v_mem_new_hat,spike_new, S_new,Theta_new,b_threshold_new,t_reset_new,eligibility_trace_new,psi_new )
+        new_output = LSNNOutputTuple( v_mem,v_mem_hat,spike, S,Theta,b_threshold,t_reset,eligibility_trace)
     else:
-        new_output = spike_new
+        new_output = spike
     return new_output, new_state
 
 ###########################################
