@@ -1,11 +1,8 @@
-"""Module implementing Kernal_RNN Cells.
+"""Module implementing kernl_rnn_cell.
 
 This module provides a copy of kernel RNN cells.
-Eghbal Hosseini - 2019-01-23
+Eghbal Hosseini - 2019-02-21
 
-version 2.0 changes: (2019-02-03)
-    - a new trace was created to for the bias term
-    - fixed error in xavier initialization of weights
 
 TODO :
     - batch kernel flag for batch version, and online version
@@ -51,7 +48,7 @@ def _gaussian_noise_perturbation(input_layer, std):
     return tf.multiply(input_layer,0) + noise
 
 def _uniform_noise_perturbation(input_layer,magnitude=1e-10):
-    noise = tf.random_uniform(shape=tf.shape(input_layer), min_val=0.000, max_val=magnitude, dtype=tf.float32)
+    noise = tf.random_uniform(shape=tf.shape(input_layer), minval=0.000, maxval=magnitude, dtype=tf.float32)
     return tf.multiply(input_layer,0) + noise
 
 def _temporal_filter_initializer(shape,dtype=None,partition_info=None,verify_shape=None, max_val=1):
@@ -61,10 +58,10 @@ def _temporal_filter_initializer(shape,dtype=None,partition_info=None,verify_sha
     return tf.random_uniform(shape,0,max_val,dtype=dtype)
 
 
-_KeRNLStateTuple = collections.namedtuple("KeRNLStateTuple", ("h","h_hat","Theta", "Gamma","eligibility_trace","bias_trace"))
-_KeRNLOutputTuple = collections.namedtuple("KeRNLOutputTuple", ("h","h_hat","Theta","Gamma", "eligibility_trace","bias_trace"))
+_kernl_state_tuple = collections.namedtuple("kernl_state_tuple", ("h","h_hat","Theta", "Gamma","eligibility_trace","bias_trace"))
+_kernl_output_tuple = collections.namedtuple("kernl_output_tuple", ("h","h_hat","Theta","Gamma", "eligibility_trace","bias_trace"))
 
-class KeRNLStateTuple(_KeRNLStateTuple):
+class kernl_state_tuple(_kernl_state_tuple):
   """Tuple used by kernel RNN Cells for `state_variables `.
   Stores 5 elements: `(h, h_hat, Theta, Gamma, eligibility_trace`, in that order.
   always is used for this type of cell
@@ -80,7 +77,7 @@ class KeRNLStateTuple(_KeRNLStateTuple):
     return h_hat.dtype
 
 
-class KeRNLOutputTuple(_KeRNLOutputTuple):
+class kernl_output_tuple(_kernl_output_tuple):
   """Tuple used by kernel Cells for output state.
   Stores 5 elements: `(h,h_hat, Theta, Gamma, eligibility_trace)`,
   Only used when `output_is_tuple=True`.
@@ -95,7 +92,7 @@ class KeRNLOutputTuple(_KeRNLOutputTuple):
                       (str(h.dtype), str(h_hat.dtype)))
     return h_hat.dtype
 
-class KeRNLCell_v2(tf.contrib.rnn.RNNCell):
+class kernl_rnn_cell(tf.contrib.rnn.RNNCell):
     """Kernel recurrent neural network Cell
       Args:
         num_units: int, The number of units in the cell.
@@ -118,14 +115,14 @@ class KeRNLCell_v2(tf.contrib.rnn.RNNCell):
                  eligibility_filter=None,
                  state_is_tuple=True,
                  output_is_tuple=False,
-                 batch_KeRNL=True,
+                 batch_kernl=True,
                  sensitivity_initializer=None,
                  temporal_filter_initializer=None,
                  kernel_initializer=None,
                  bias_initializer=None,
                  name="kernl_rnn_cell"):
 
-        super(KeRNLCell_v2,self).__init__(_reuse=reuse)
+        super(kernl_rnn_cell,self).__init__(_reuse=reuse)
         self._num_units = num_units
         self._num_inputs = num_inputs
         self._time_steps = time_steps
@@ -135,8 +132,8 @@ class KeRNLCell_v2(tf.contrib.rnn.RNNCell):
         self._linear = None
         self._state_is_tuple=state_is_tuple
         self._output_is_tuple= output_is_tuple
-        self._batch_KeRNL=batch_KeRNL
-        self._gaussian_noise_perturbation=_gaussian_noise_perturbation
+        self._batch_kernl=batch_kernl
+        self._perturbation=_gaussian_noise_perturbation
         self._name=name
         # define initializers
 
@@ -167,7 +164,7 @@ class KeRNLCell_v2(tf.contrib.rnn.RNNCell):
     @property
     # h,h_hat,Theta, Gamma,eligibility_trace
     def state_size(self):
-        return (KeRNLStateTuple(self._num_units,
+        return (kernl_state_tuple(self._num_units,
                                 self._num_units,
                                 self._num_units,
                                 self._num_units,
@@ -176,7 +173,7 @@ class KeRNLCell_v2(tf.contrib.rnn.RNNCell):
                 if self._state_is_tuple else self._num_units)
     @property
     def output_size(self):
-        return (KeRNLOutputTuple(self._num_units,
+        return (kernl_output_tuple(self._num_units,
                                  self._num_units,
                                  self._num_units,
                                  self._num_units,
@@ -186,10 +183,10 @@ class KeRNLCell_v2(tf.contrib.rnn.RNNCell):
 
     # call function routine
     def call(self, inputs, state):
-        """Kernel RNN cell (KeRNL).
+        """Kernel RNN cell (kernl).
         Args:
           inputs: `2-D` tensor with shape `[batch_size x input_size]`.
-          state: An `KeRNLStateTuple` of state tensors, shaped as following
+          state: An `kernl_state_tuple` of state tensors, shaped as following
             h:                   [batch_size x self.state_size]`
             h_hat:               [batch_size x self.state_size]`
             Theta:               [batch_size x self.state_size]`
@@ -227,7 +224,7 @@ class KeRNLCell_v2(tf.contrib.rnn.RNNCell):
         if self._linear is None:
             self._linear = _Linear([inputs, h],self._num_units,True,kernel_initializer=self._kernel_initializer,bias_initializer=self._bias_initializer)
         # create noise for current timestep.
-        psi_new=self._gaussian_noise_perturbation(h,self._noise_param)
+        psi_new=self._perturbation(h,self._noise_param)
         # propagate data forward
         h_new=self._activation(self._linear([inputs,h]),name='update_h')
         # propagate noisy data forward
@@ -250,9 +247,9 @@ class KeRNLCell_v2(tf.contrib.rnn.RNNCell):
         bias_trace_new=tf.add(tf.multiply(self._temporal_filter(-temporal_filter),bias_trace),activation_gradients)
 
         if self._state_is_tuple:
-            new_state=KeRNLStateTuple(h_new,h_hat_new,Theta_new,Gamma_new,eligibility_trace_new,bias_trace_new)
+            new_state=kernl_state_tuple(h_new,h_hat_new,Theta_new,Gamma_new,eligibility_trace_new,bias_trace_new)
         if self._output_is_tuple:
-            new_output=KeRNLOutputTuple(h_new,h_hat_new,Theta_new,Gamma_new,eligibility_trace_new,bias_trace_new)
+            new_output=kernl_output_tuple(h_new,h_hat_new,Theta_new,Gamma_new,eligibility_trace_new,bias_trace_new)
         else:
             new_output=h_new
 
