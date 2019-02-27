@@ -61,9 +61,6 @@ num_output = 1 # value of the addition estimation
 log_dir = "om2/user/ehoseini/MyData/KeRNL/logs/bptt_rnn_addition/add_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
 log_dir
 
-# report batch number
-total_batch = int(mnist.train.num_examples / batch_size)
-print("Total number of batches:", total_batch)
 
 ## define KeRNL unit
 def bptt_rnn(x,rnn_weights,rnn_bias):
