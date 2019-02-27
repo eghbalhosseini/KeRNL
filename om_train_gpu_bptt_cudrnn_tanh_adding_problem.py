@@ -69,7 +69,7 @@ def bptt_rnn(x,rnn_weights,rnn_bias):
         #rnn_cell = tf.contrib.rnn.BasicRNNCell(num_hidden,name='irnn')
         #rnn_outputs, rnn_states = tf.nn.dynamic_rnn(rnn_cell, x, dtype=tf.float32)
         rnn_cell=tf.contrib.cudnn_rnn.CudnnRNNTanh(num_layers=1,num_units=num_hidden)
-        rnn_outputs, _ =rnn_cell(x)
+        rnn_outputs, rnn_states =rnn_cell(x)
         rnn_output=tf.matmul(rnn_outputs[:,-1,:], rnn_weights) +rnn_biases
 
     return rnn_output, rnn_states
