@@ -147,7 +147,7 @@ class LSNNOutputTuple(_LSNNOutputTuple):
 ###########################################
 
 
-class conductance_spike_Cell(tf.contrib.rnn.RNNCell):
+class conductance_spike_cell(tf.contrib.rnn.RNNCell):
   """ conductance_spike_Cell
   Args:
   """
@@ -171,7 +171,7 @@ class conductance_spike_Cell(tf.contrib.rnn.RNNCell):
                state_is_tuple=True,
                output_is_tuple=False):
 
-    super(conductance_spike_Cell, self).__init__(_reuse=reuse)
+    super(conductance_spike_cell, self).__init__(_reuse=reuse)
     self._num_units = num_units
     self.tau_m=tau_m
     self.v_theta=v_theta
@@ -272,18 +272,12 @@ class conductance_spike_Cell(tf.contrib.rnn.RNNCell):
     Beta_new = self.beta_baseline+ tf.multiply(self.beta_coeff,b_threshold_new)
 
     ## TODO make S dependent on spikes
-<<<<<<< HEAD
-<<<<<<< HEAD
+
     #Implement synaptic conductance update
     delta=tf.exp(tf.negative(tf.divide(self.dt,self.tau_s)))
     S_update = tf.scalar_mul(delta,S)
     S_new=tf.add(S_update,spike_new)
-=======
-    S_new = spike_new
->>>>>>> 8c348af6d6d6ed103e42439ad0a8bbd90ee1815f
-=======
-    S_new = spike_new
->>>>>>> a271c87361162ca84407c8cfb6cf1a96da57da4b
+
     ## return variables
 
     if self._state_is_tuple:
@@ -305,15 +299,7 @@ class output_spike_cell(tf.contrib.rnn.RNNCell):
   """
   def __init__(self,
                num_units,
-<<<<<<< HEAD
-<<<<<<< HEAD
                tau_m=20.0,
-=======
-               tau_m=10.0,
->>>>>>> 8c348af6d6d6ed103e42439ad0a8bbd90ee1815f
-=======
-               tau_m=10.0,
->>>>>>> a271c87361162ca84407c8cfb6cf1a96da57da4b
                dt=1.0,
                reuse=None,
                kernel_initializer=None,
@@ -347,17 +333,8 @@ class output_spike_cell(tf.contrib.rnn.RNNCell):
     v_mem = state
 
     if self._linear is None:
-<<<<<<< HEAD
-<<<<<<< HEAD
-        self._linear = _Linear([inputs],self._num_units,False,
-=======
-        self._linear = _Linear([inputs],self._num_units,True,
->>>>>>> 8c348af6d6d6ed103e42439ad0a8bbd90ee1815f
-=======
-        self._linear = _Linear([inputs],self._num_units,True,
->>>>>>> a271c87361162ca84407c8cfb6cf1a96da57da4b
-                                    kernel_initializer=self._kernel_initializer,
-                                    bias_initializer=self._bias_initializer)
+
+        self._linear = _Linear([inputs],self._num_units,True,kernel_initializer=self._kernel_initializer,bias_initializer=self._bias_initializer)
 
     # calculate new Isyn = W*S
     I_syn_new=self._linear([inputs])

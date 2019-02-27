@@ -43,23 +43,30 @@ from tensorflow.contrib import slim
 _TEMPORAL_FILTER_NAME= "temporal_filter"
 _SENSITIVITY_TENSOR_NAME= "sensitivity_tensor"
 
-def _gaussian_noise_perturbation(input_layer, std):
-    noise = tf.random_normal(shape=tf.shape(input_layer), mean=0.000, stddev=std, dtype=tf.float32)
+
+def heaviside(x):
+    return 1 - tf.maximum(0.0, tf.sign(-x))
+
+
+def tanh_diff(x):
+    return 1-tf.math.square(tf.tanh(x))
+
+def _gaussian_noise_perturbation(input_layer, magnitude=1e-3):
+    noise = tf.random_normal(shape=tf.shape(input_layer), mean=0.0, stddev=magnitude, dtype=tf.float32)
     return tf.multiply(input_layer,0) + noise
 
-def _uniform_noise_perturbation(input_layer,magnitude=1e-10):
+def _uniform_noise_perturbation(input_layer,magnitude=1e-3):
     noise = tf.random_uniform(shape=tf.shape(input_layer), minval=0.000, maxval=magnitude, dtype=tf.float32)
     return tf.multiply(input_layer,0) + noise
 
 def _temporal_filter_initializer(shape,dtype=None,partition_info=None,verify_shape=None, max_val=1):
     if dtype is None:
         dtype=tf.float32
-
     return tf.random_uniform(shape,0,max_val,dtype=dtype)
 
 
 _kernl_state_tuple = collections.namedtuple("kernl_state_tuple", ("h","h_hat","Theta", "Gamma","eligibility_trace","bias_trace"))
-_kernl_output_tuple = collections.namedtuple("kernl_output_tuple", ("h","h_hat","Theta","Gamma", "eligibility_trace","bias_trace"))
+_kernl_output_tuple = collections.namedtuple("kernl_output_tuple", ("h","h_hat","Theta","Gamma", "eligibility_trace","bias_trace","psi"))
 
 class kernl_state_tuple(_kernl_state_tuple):
   """Tuple used by kernel RNN Cells for `state_variables `.
@@ -86,7 +93,7 @@ class kernl_output_tuple(_kernl_output_tuple):
 
   @property
   def dtype(self):
-    (h, h_hat,Theta , Gamma, input_trace,eligibility_trace,bias_trace) = self
+    (h, h_hat,Theta , Gamma, input_trace,eligibility_trace,bias_trace,psi) = self
     if h.dtype != h_hat.dtype:
       raise TypeError("Inconsistent internal state: %s vs %s" %
                       (str(h.dtype), str(h_hat.dtype)))
@@ -110,7 +117,7 @@ class kernl_rnn_cell(tf.contrib.rnn.RNNCell):
                  num_inputs,
                  time_steps=1,
                  noise_param=0.5,
-                 activation=None,
+                 activation="relu",
                  reuse=None,
                  eligibility_filter=None,
                  state_is_tuple=True,
@@ -126,6 +133,7 @@ class kernl_rnn_cell(tf.contrib.rnn.RNNCell):
         self._num_units = num_units
         self._num_inputs = num_inputs
         self._time_steps = time_steps
+
         self._activation = activation or tf.nn.relu
         self._temporal_filter = eligibility_filter or math_ops.exp
         self._noise_param=noise_param
@@ -135,7 +143,7 @@ class kernl_rnn_cell(tf.contrib.rnn.RNNCell):
         self._batch_kernl=batch_kernl
         self._perturbation=_gaussian_noise_perturbation
         self._name=name
-        # define initializers
+        self._activation_diff=None
 
         # sensitivty_tensor
         if sensitivity_initializer is None:
@@ -161,6 +169,17 @@ class kernl_rnn_cell(tf.contrib.rnn.RNNCell):
         else:
             self._bias_initializer=bias_initializer
 
+        # gradient of output function
+        if activation == "relu":
+            self._activation=tf.nn.relu
+            self._activation_diff=heaviside
+
+        elif activation == "tanh":
+            self._activation=tf.nn.tanh
+            self._activation_diff=tanh_diff
+        else:
+            logging.error("only relu and tanh are implemented at this time")
+
     @property
     # h,h_hat,Theta, Gamma,eligibility_trace
     def state_size(self):
@@ -178,6 +197,7 @@ class kernl_rnn_cell(tf.contrib.rnn.RNNCell):
                                  self._num_units,
                                  self._num_units,
                                  np.array([self._num_units,self._num_units+self._num_inputs]),
+                                 self._num_units,
                                  self._num_units)
                 if self._output_is_tuple else self._num_units)
 
@@ -202,6 +222,7 @@ class kernl_rnn_cell(tf.contrib.rnn.RNNCell):
             Gamma:               [batch_size x self.state_size]`
             eligibility_trace    [batch_size x self.state_size x (self._state_size, self.input_size)]`
             bias_trace           [batch_size x self.state_size]`
+            psi                  [batch_size x self.state_size]`
         """
         # initialize temporal_filter
         scope=vs.get_variable_scope()
@@ -224,9 +245,9 @@ class kernl_rnn_cell(tf.contrib.rnn.RNNCell):
         if self._linear is None:
             self._linear = _Linear([inputs, h],self._num_units,True,kernel_initializer=self._kernel_initializer,bias_initializer=self._bias_initializer)
         # create noise for current timestep.
-        psi_new=self._perturbation(h,self._noise_param)
+        psi_new=self._perturbation(h,magnitude=self._noise_param)
         # propagate data forward
-        h_new=self._activation(self._linear([inputs,h]),name='update_h')
+        h_new=self._activation(self._linear([inputs, h]),name='update_h')
         # propagate noisy data forward
         h_hat_update=tf.add(h_hat,psi_new,name='add_noise')
         h_hat_new= self._activation(self._linear([inputs, h_hat_update]),name='update_h_hat')
@@ -239,7 +260,7 @@ class kernl_rnn_cell(tf.contrib.rnn.RNNCell):
         # update elgibility traces
         g_new=self._linear([inputs,h]) # size : batch*num_units
         pre_activation=self._activation(g_new) # size : batch*num_units
-        activation_gradients=tf.gradients(pre_activation,g_new)[0] # convert list to a tensor
+        activation_gradients=self._activation_diff(g_new)
         kernel_decay=tf.expand_dims(self._temporal_filter(-temporal_filter),axis=-1)
         eligibility_trace_new=tf.add(tf.multiply(kernel_decay,eligibility_trace),
                                      tf.einsum("un,uv->unv",activation_gradients,array_ops.concat([inputs,h],1)))
@@ -249,7 +270,7 @@ class kernl_rnn_cell(tf.contrib.rnn.RNNCell):
         if self._state_is_tuple:
             new_state=kernl_state_tuple(h_new,h_hat_new,Theta_new,Gamma_new,eligibility_trace_new,bias_trace_new)
         if self._output_is_tuple:
-            new_output=kernl_output_tuple(h_new,h_hat_new,Theta_new,Gamma_new,eligibility_trace_new,bias_trace_new)
+            new_output=kernl_output_tuple(h_new,h_hat_new,Theta_new,Gamma_new,eligibility_trace_new,bias_trace_new,psi_new)
         else:
             new_output=h_new
 
