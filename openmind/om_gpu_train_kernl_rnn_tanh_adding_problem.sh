@@ -1,5 +1,5 @@
 #!/bin/sh
-#SBATCH --job-name=train_bptt
+#SBATCH --job-name=train_kernl
 #SBATCH --mem=40000
 #SBATCH --gres=gpu:titan-x:2
 #SBATCH --time=1-00:00:00
@@ -7,7 +7,7 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=ehoseini@mit.edu
 #SBATCH --array=1
-#SBATCH --output=om_gpu_train_results_bptt_cudrnn_tanh_adding_problem.out
+#SBATCH --output=om_gpu_train_results_kernl_rnn_tanh_adding_problem.out
 
 module add openmind/singularity
 export SINGULARITY_CACHEDIR=/om2/user/`whoami`/st/
