@@ -11,4 +11,4 @@
 
 module add openmind/singularity
 export SINGULARITY_CACHEDIR=/om2/user/`whoami`/st/
-singularity exec --nv -B /om2:/om2 /om2/user/`whoami`/simg_images/om_image_tensorflow1-12_gpu.simg /usr/bin/python3 ~/MyCodes/KeRNL/om_train_gpu_bptt_cudrnn_tanh_adding_dataset.py
+singularity exec --nv -B /om2:/om2 /om2/user/`whoami`/simg_images/om_image_tensorflow1-12_gpu.simg /usr/bin/python3 ~/MyCodes/KeRNL/om_train_gpu_bptt_rnn_tanh_adding_dataset.py
