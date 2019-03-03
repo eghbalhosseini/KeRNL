@@ -1,6 +1,6 @@
 # python libraries
 import numpy as np
-import matplotlib.pyplot as plt
+
 import collections
 import hashlib
 import numbers
@@ -95,7 +95,7 @@ with graph.as_default():
     iter = dataset.make_initializable_iterator()
     inputs,labels =iter.get_next()
     # define a function for extraction of variable names
-    rnn_output,rnn_states=bptt_rnn(X,rnn_weights,rnn_biases)
+    rnn_output,rnn_states=bptt_rnn(inputs,rnn_weights,rnn_biases)
     trainables=tf.trainable_variables()
     variable_names=[v.name for v in tf.trainable_variables()]
     #
@@ -116,7 +116,7 @@ with graph.as_default():
             ##################
     with tf.name_scope("bptt_train") as scope:
                 # BPTT
-        bptt_loss_output_prediction=tf.losses.mean_squared_error(Y,rnn_output)
+        bptt_loss_output_prediction=tf.losses.mean_squared_error(labels,rnn_output)
                 # define optimizer
         bptt_weight_optimizer = tf.train.RMSPropOptimizer(learning_rate=weight_learning_rate)
         bptt_grads=tf.gradients(bptt_loss_output_prediction,bptt_weight_trainables)
@@ -126,7 +126,7 @@ with graph.as_default():
                 # apply gradients
         bptt_weight_train_op = bptt_weight_optimizer.apply_gradients(bptt_cropped_weight_grads_and_vars)
     with tf.name_scope("bptt_evaluate") as scope:
-        bptt_loss_cross_validiation=tf.losses.mean_squared_error(Y,rnn_output)
+        bptt_loss_cross_validiation=tf.losses.mean_squared_error(labels,rnn_output)
 
     with tf.name_scope('cross_validation_summary') as scope:
         tf.summary.scalar('cross_validation_summary',bptt_loss_cross_validiation+1e-10)

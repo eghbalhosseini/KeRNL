@@ -107,7 +107,7 @@ with graph.as_default():
     iter = dataset.make_initializable_iterator()
     inputs,labels =iter.get_next()
     #
-    kernl_output,kernl_states=kernl_rnn(X,kernl_weights,kernl_biases)
+    kernl_output,kernl_states=kernl_rnn(inputs,kernl_weights,kernl_biases)
     trainables=tf.trainable_variables()
     variable_names=[v.name for v in tf.trainable_variables()]
     #
@@ -133,7 +133,7 @@ with graph.as_default():
     ##################
     with tf.name_scope("kernl_train") as scope:
         # outputs
-        kernl_loss_output_prediction=tf.losses.mean_squared_error(Y,kernl_output)
+        kernl_loss_output_prediction=tf.losses.mean_squared_error(labels,kernl_output)
 
         # states
         kernl_loss_state_prediction=tf.losses.mean_squared_error(tf.subtract(kernl_states.h_hat, kernl_states.h),tf.matmul(kernl_states.Theta,trainables[kernl_sensitivity_tensor_index]))
@@ -167,7 +167,7 @@ with graph.as_default():
             kernl_weight_train_op = kernl_weight_optimizer.apply_gradients(kernl_cropped_weight_grads_and_vars)
 
     with tf.name_scope("kernl_evaluate") as scope:
-      kernl_loss_cross_validiation=tf.losses.mean_squared_error(Y,kernl_output)
+      kernl_loss_cross_validiation=tf.losses.mean_squared_error(labels,kernl_output)
 
     with tf.name_scope('cross_validation_summary') as scope:
         tf.summary.scalar('cross_validation_summary',kernl_loss_cross_validiation+1e-10)
