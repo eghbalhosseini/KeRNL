@@ -49,6 +49,7 @@ import adding_problem
 weight_learning_rate = 1e-3
 training_steps = 4000
 batch_size = 25
+buffer_size=500
 training_size=batch_size*training_steps
 epochs=100
 test_size=10000
@@ -94,7 +95,7 @@ with graph.as_default():
     Y = tf.placeholder("float", [None, num_output])
     # define a dataset
     dataset=tf.data.Dataset.from_tensor_slices((X,Y)).batch(BATCH_SIZE).repeat()
-    dataset = dataset.shuffle(buffer_size=5000)
+    dataset = dataset.shuffle(buffer_size=buffer_size)
     iter = dataset.make_initializable_iterator()
     inputs,labels =iter.get_next()
     # define a function for extraction of variable names

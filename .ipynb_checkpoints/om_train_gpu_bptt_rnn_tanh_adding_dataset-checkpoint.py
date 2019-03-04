@@ -1,6 +1,6 @@
 # python libraries
 import numpy as np
-import matplotlib.pyplot as plt
+
 import collections
 import hashlib
 import numbers
@@ -48,10 +48,10 @@ import adding_problem
 # Training Parameters
 weight_learning_rate = 1e-3
 training_steps = 4000
-batch_size = 25
 buffer_size=500
+batch_size = 25
 training_size=batch_size*training_steps
-epochs=100
+epochs=50
 test_size=10000
 display_step = 100
 grad_clip=100
@@ -63,9 +63,8 @@ num_output = 1 # value of the addition estimation
 #
 
 # save dir
-log_dir = "/om2/user/ehoseini/MyData/KeRNL/logs/bptt_rnn_addition_dataset/cudrnn_relu_add_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir = "/om2/user/ehoseini/MyData/KeRNL/logs/bptt_rnn_addition_dataset/rnn_tanh_add_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
 log_dir
-## create training dataset
 # create a training and testing dataset
 training_x, training_y = adding_problem.get_batch(batch_size=training_size,time_steps=time_steps)
 testing_x, testing_y = adding_problem.get_batch(batch_size=test_size,time_steps=time_steps)
@@ -74,10 +73,8 @@ testing_x, testing_y = adding_problem.get_batch(batch_size=test_size,time_steps=
 def bptt_rnn(x,rnn_weights,rnn_bias):
     # Define a KeRNL cell, the initialization is done inside the cell with default initializers
     with tf.variable_scope("bptt",initializer=tf.initializers.identity()) as scope:
-        #rnn_cell = tf.contrib.rnn.BasicRNNCell(num_hidden,name='irnn')
-        #rnn_outputs, rnn_states = tf.nn.dynamic_rnn(rnn_cell, x, dtype=tf.float32)
-        rnn_cell=tf.contrib.cudnn_rnn.CudnnRNNRelu(num_layers=1,num_units=num_hidden)
-        rnn_outputs, rnn_states =rnn_cell(x)
+        rnn_cell = tf.contrib.rnn.BasicRNNCell(num_hidden,name='irnn',activation=tf.nn.tanh)
+        rnn_outputs, rnn_states = tf.nn.dynamic_rnn(rnn_cell, x, dtype=tf.float32)
         rnn_output=tf.matmul(rnn_outputs[:,-1,:], rnn_weights) +rnn_biases
 
     return rnn_output, rnn_states
@@ -110,10 +107,10 @@ with graph.as_default():
         bptt_output_weight_index= find_joing_index(trainables,'bptt','output_weight')
         bptt_output_addition_index= find_joing_index(trainables,'bptt','output_addition')
         bptt_kernel_index= find_joing_index(trainables,'bptt','kernel')
+        bptt_bias_index= find_joing_index(trainables,'bptt','bias')
             #
-        bptt_weight_training_indices=np.asarray([bptt_kernel_index,bptt_output_weight_index,bptt_output_addition_index],dtype=np.int)
+        bptt_weight_training_indices=np.asarray([bptt_kernel_index,bptt_bias_index,bptt_output_weight_index,bptt_output_addition_index],dtype=np.int)
         bptt_weight_trainables= [trainables[k] for k in bptt_weight_training_indices]
-
 
             ##################
             ## bptt train ####
@@ -122,14 +119,13 @@ with graph.as_default():
                 # BPTT
         bptt_loss_output_prediction=tf.losses.mean_squared_error(labels,rnn_output)
                 # define optimizer
-        bptt_weight_optimizer = tf.train.AdamOptimizer(learning_rate=weight_learning_rate)
+        bptt_weight_optimizer = tf.train.RMSPropOptimizer(learning_rate=weight_learning_rate)
         bptt_grads=tf.gradients(bptt_loss_output_prediction,bptt_weight_trainables)
         bptt_weight_grads_and_vars=list(zip(bptt_grads,bptt_weight_trainables))
                 # Apply gradient Clipping to recurrent weights
         bptt_cropped_weight_grads_and_vars=[(tf.clip_by_norm(grad, grad_clip),var) if  np.unicode_.find(var.name,'output')==-1 else (grad,var) for grad,var in bptt_weight_grads_and_vars]
                 # apply gradients
         bptt_weight_train_op = bptt_weight_optimizer.apply_gradients(bptt_cropped_weight_grads_and_vars)
-
     with tf.name_scope("bptt_evaluate") as scope:
         bptt_loss_cross_validiation=tf.losses.mean_squared_error(labels,rnn_output)
 
