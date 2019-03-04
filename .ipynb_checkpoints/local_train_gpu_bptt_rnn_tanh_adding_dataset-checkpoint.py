@@ -47,11 +47,10 @@ import adding_problem
 # Training Parameters
 # Training Parameters
 weight_learning_rate = 1e-3
-training_steps = 4000
-buffer_size=500
+training_steps = 1000
 batch_size = 25
 training_size=batch_size*training_steps
-epochs=50
+epochs=5
 test_size=10000
 display_step = 100
 grad_clip=100
@@ -63,7 +62,7 @@ num_output = 1 # value of the addition estimation
 #
 
 # save dir
-log_dir = "/om2/user/ehoseini/MyData/KeRNL/logs/bptt_rnn_addition_dataset/rnn_tanh_add_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir = os.environ['HOME']+"/MyData/KeRNL/logs/bptt_rnn_addition_dataset/rnn_tanh_add_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
 log_dir
 # create a training and testing dataset
 training_x, training_y = adding_problem.get_batch(batch_size=training_size,time_steps=time_steps)
@@ -92,7 +91,7 @@ with graph.as_default():
     Y = tf.placeholder("float", [None, num_output])
     # define a dataset
     dataset=tf.data.Dataset.from_tensor_slices((X,Y)).batch(BATCH_SIZE).repeat()
-    dataset = dataset.shuffle(buffer_size=buffer_size)
+    dataset = dataset.shuffle(buffer_size=5000)
     iter = dataset.make_initializable_iterator()
     inputs,labels =iter.get_next()
     # define a function for extraction of variable names

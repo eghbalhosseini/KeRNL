@@ -1,6 +1,6 @@
 # python libraries
 import numpy as np
-
+import matplotlib.pyplot as plt
 import collections
 import hashlib
 import numbers
@@ -45,13 +45,9 @@ import adding_problem
 
 
 # Training Parameters
-# Training Parameters
 weight_learning_rate = 1e-3
-training_steps = 4000
-buffer_size=500
-batch_size = 25
-training_size=batch_size*training_steps
-epochs=50
+training_steps = 250000
+batch_size = 20
 test_size=10000
 display_step = 100
 grad_clip=100
@@ -61,19 +57,16 @@ time_steps = 200
 num_hidden = 100 # hidden layer num of features
 num_output = 1 # value of the addition estimation
 #
-
 # save dir
-log_dir = "/om2/user/ehoseini/MyData/KeRNL/logs/bptt_rnn_addition_dataset/rnn_tanh_add_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir = "/om2/user/ehoseini/MyData/KeRNL/logs/bptt_rnn_addition/tanh_add_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
 log_dir
-# create a training and testing dataset
-training_x, training_y = adding_problem.get_batch(batch_size=training_size,time_steps=time_steps)
-testing_x, testing_y = adding_problem.get_batch(batch_size=test_size,time_steps=time_steps)
+
 
 ## define KeRNL unit
 def bptt_rnn(x,rnn_weights,rnn_bias):
     # Define a KeRNL cell, the initialization is done inside the cell with default initializers
     with tf.variable_scope("bptt",initializer=tf.initializers.identity()) as scope:
-        rnn_cell = tf.contrib.rnn.BasicRNNCell(num_hidden,name='irnn',activation=tf.nn.tanh)
+        rnn_cell = tf.contrib.rnn.BasicRNNCell(num_hidden,name='irnn')
         rnn_outputs, rnn_states = tf.nn.dynamic_rnn(rnn_cell, x, dtype=tf.float32)
         rnn_output=tf.matmul(rnn_outputs[:,-1,:], rnn_weights) +rnn_biases
 
@@ -86,17 +79,10 @@ with graph.as_default():
         rnn_weights = tf.get_variable(shape=[num_hidden, num_output],name='output_weight')
         rnn_biases = tf.get_variable(shape=[num_output],name='output_addition')
     # define weights and inputs to the network
-    # define weights and inputs to the network
-    BATCH_SIZE=tf.placeholder(tf.int64)
     X = tf.placeholder("float", [None, time_steps, num_input])
     Y = tf.placeholder("float", [None, num_output])
-    # define a dataset
-    dataset=tf.data.Dataset.from_tensor_slices((X,Y)).batch(BATCH_SIZE).repeat()
-    dataset = dataset.shuffle(buffer_size=buffer_size)
-    iter = dataset.make_initializable_iterator()
-    inputs,labels =iter.get_next()
     # define a function for extraction of variable names
-    rnn_output,rnn_states=bptt_rnn(inputs,rnn_weights,rnn_biases)
+    rnn_output,rnn_states=bptt_rnn(X,rnn_weights,rnn_biases)
     trainables=tf.trainable_variables()
     variable_names=[v.name for v in tf.trainable_variables()]
     #
@@ -117,7 +103,7 @@ with graph.as_default():
             ##################
     with tf.name_scope("bptt_train") as scope:
                 # BPTT
-        bptt_loss_output_prediction=tf.losses.mean_squared_error(labels,rnn_output)
+        bptt_loss_output_prediction=tf.losses.mean_squared_error(Y,rnn_output)
                 # define optimizer
         bptt_weight_optimizer = tf.train.RMSPropOptimizer(learning_rate=weight_learning_rate)
         bptt_grads=tf.gradients(bptt_loss_output_prediction,bptt_weight_trainables)
@@ -127,7 +113,7 @@ with graph.as_default():
                 # apply gradients
         bptt_weight_train_op = bptt_weight_optimizer.apply_gradients(bptt_cropped_weight_grads_and_vars)
     with tf.name_scope("bptt_evaluate") as scope:
-        bptt_loss_cross_validiation=tf.losses.mean_squared_error(labels,rnn_output)
+        bptt_loss_cross_validiation=tf.losses.mean_squared_error(Y,rnn_output)
 
     with tf.name_scope('cross_validation_summary') as scope:
         tf.summary.scalar('cross_validation_summary',bptt_loss_cross_validiation+1e-10)
@@ -142,18 +128,29 @@ with graph.as_default():
         tf.summary.histogram('bptt_kernel_grad',bptt_grads[0]+1e-10)
         tf.summary.histogram('bptt_kernel', bptt_weight_trainables[0]+1e-10)
                     # bptt output weight
-        tf.summary.histogram('bptt_output_weight_grad',bptt_grads[1]+1e-10)
+        tf.summary.histogram('bptt_output_weight_grad',bptt_grads[2]+1e-10)
         tf.summary.histogram('bptt_output_weights', bptt_weight_trainables[2]+1e-10)
                     # bptt output bias
-        tf.summary.histogram('bptt_output_addition_grad',bptt_grads[2]+1e-10)
-        tf.summary.histogram('bptt_output_addition', bptt_weight_trainables[2]+1e-10)
+        tf.summary.histogram('bptt_output_addition_grad',bptt_grads[3]+1e-10)
+        tf.summary.histogram('bptt_output_addition', bptt_weight_trainables[3]+1e-10)
                     # bptt loss and accuracy
         tf.summary.scalar('bptt_loss_output_prediction',bptt_loss_output_prediction+1e-10)
+
+
+        for grad, var in bptt_weight_grads_and_vars:
+            norm = tf.norm(tf.clip_by_norm(grad, 10.), ord=2)
+            tf.summary.histogram(var.name.replace(":", "_") + '/gradient_l2',
+                                 tf.where(tf.is_nan(norm), tf.zeros_like(norm), norm))
+        for grad, var in bptt_cropped_weight_grads_and_vars:
+            norm = tf.norm(grad, ord=2)
+            tf.summary.histogram(var.name.replace(":", "_") + '/gradient_clipped_l2',
+                                 tf.where(tf.is_nan(norm), tf.zeros_like(norm), norm))
 
         bptt_merged_summary_op=tf.summary.merge_all(scope="bptt_summaries")
     init = tf.global_variables_initializer()
     saver = tf.train.Saver()
-
+    print("All parameters:", np.sum([np.product([xi.value for xi in x.get_shape()]) for x in tf.global_variables()]))
+    print("Trainable parameters:", np.sum([np.product([xi.value for xi in x.get_shape()]) for x in tf.trainable_variables()]))
 ###################################################
 
 Path(log_dir).mkdir(exist_ok=True, parents=True)
@@ -167,19 +164,29 @@ tb_writer = tf.summary.FileWriter(log_dir,graph)
 # run a training session
 with tf.Session(graph=graph) as sess:
     sess.run(init)
-    for epoch in range(epochs):
-        sess.run(iter.initializer,feed_dict={X: training_x, Y: training_y , BATCH_SIZE: batch_size})
-        for step in range(training_steps):
-            bptt_train, bptt_loss=sess.run([bptt_weight_train_op,bptt_loss_output_prediction])
-            if step % display_step==0:
-                bptt_merged_summary=sess.run(bptt_merged_summary_op)
-                tb_writer.add_summary(bptt_merged_summary, global_step=epoch*training_steps+step+1)
-                print('Epoch: {}, Batch: {} , total batch {}, total trials: {},bptt train Loss: {:.3f}'.format(epoch+1,step + 1,epoch*training_steps+step+1,(epoch*training_steps+step+1)*batch_size, bptt_loss))
-        # run test at the end of each epoch
-        sess.run(iter.initializer, feed_dict={ X: testing_x, Y: testing_y, BATCH_SIZE: testing_x.shape[0]})
-        bptt_test_loss,bptt_evaluate_summary=sess.run([bptt_loss_cross_validiation,bptt_evaluate_summary_op])
-        tb_writer.add_summary(bptt_evaluate_summary, global_step=epoch*training_steps+training_steps+1)
-        print('cross validation loss {:.3f} at the end of epoch {}'.format(bptt_test_loss,epoch+1))
+    for step in range(1,training_steps+1):
+        batch_x, batch_y = adding_problem.get_batch(batch_size=batch_size,time_steps=time_steps)
+        # bptt train
+        bptt_train, bptt_loss,bptt_merged_summary=sess.run([bptt_weight_train_op,bptt_loss_output_prediction,bptt_merged_summary_op],feed_dict={X:batch_x, Y:batch_y})
+
+        # run summaries
+        #bptt_merged_summary=sess.run(bptt_merged_summary_op,feed_dict={X:batch_x, Y:batch_y})
+
+        tb_writer.add_summary(bptt_merged_summary, global_step=step)
+
+        #
+        if step % display_step==0 or step==1 :
+            test_batch_x, test_batch_y = adding_problem.get_batch(batch_size=test_size,time_steps=time_steps)
+            bptt_test_loss, bptt_evaluate_summary=sess.run([bptt_loss_cross_validiation,bptt_evaluate_summary_op],feed_dict={X:test_batch_x, Y:test_batch_y})
+            # get batch loss and accuracy
+            tb_writer.add_summary(bptt_evaluate_summary, global_step=step)
+            print('Step: {},bptt train Loss: {:.3f}, cross validation loss :{:.3f}'.format(step + 1, bptt_loss,bptt_test_loss))
+
+
     print("Optimization Finished!")
-    save_path = saver.save(sess, log_dir+"/model.ckpt", global_step=epoch*training_steps+training_steps,write_meta_graph=True)
+    #test_data = mnist.test.images[:test_len].reshape((-1, timesteps, num_input))
+    #test_label = mnist.test.labels[:test_len]
+    #print("Testing Accuracy:",
+    #    sess.run(loss_output_prediction, feed_dict={X: test_data, Y: test_label}))
+    save_path = saver.save(sess, log_dir+"/model.ckpt", global_step=step,write_meta_graph=True)
     print("Model saved in path: %s" % save_path)
