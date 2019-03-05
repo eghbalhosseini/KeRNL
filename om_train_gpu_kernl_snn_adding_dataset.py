@@ -162,9 +162,9 @@ with graph.as_default():
     ##################
 
     with tf.name_scope("kernl_tensor_summaries") as scope:
-        tf.summary.histogram('kernl_sensitivity_tensor_grad',kernl_sensitivity_tensor_update+1e-10)
+        tf.summary.histogram('kernl_sensitivity_tensor_grad',kernl_tensor_grads[0]+1e-10)
         tf.summary.histogram('kernl_sensitivity_tensor',trainables[kernl_sensitivity_tensor_index]+1e-10)
-        tf.summary.histogram('kernl_temporal_filter_grad',kernl_temporal_filter_update+1e-10)
+        tf.summary.histogram('kernl_temporal_filter_grad',kernl_tensor_grads[1]+1e-10)
         tf.summary.histogram('kernl_temporal_filter',trainables[kernl_temporal_filter_index]+1e-10)
         tf.summary.scalar('kernl_loss_state_prediction',kernl_loss_state_prediction+1e-10)
         kernl_tensor_merged_summary_op=tf.summary.merge_all(scope="kernl_tensor_summaries")
