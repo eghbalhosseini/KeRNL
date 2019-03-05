@@ -1,10 +1,8 @@
 # python libraries
 import numpy as np
-import matplotlib.pyplot as plt
 import collections
 import hashlib
 import numbers
-import matplotlib.cm as cm
 from sys import getsizeof
 from datetime import datetime
 from pathlib import Path
@@ -48,11 +46,11 @@ import adding_problem
 # Training Parameters
 tensor_learning_rate = 1e-5
 weight_learning_rate = 1e-3
-training_steps = 2000
+training_steps = 4000
 buffer_size=500
 batch_size = 25
 training_size=batch_size*training_steps
-epochs=50
+epochs=100
 test_size=10000
 display_step = 100
 grad_clip=100
@@ -67,7 +65,7 @@ perturbation_std=1e-5
 
 #
 # save dir
-log_dir = "/om2/user/ehoseini/MyData/KeRNL/logs/kernl_rnn_addition_dataset/tanh_add_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir = os.environ['HOME']+"/MyData/KeRNL/logs/kernl_rnn_addition_dataset/tanh_add_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
 log_dir
 
 # create a training and testing dataset
