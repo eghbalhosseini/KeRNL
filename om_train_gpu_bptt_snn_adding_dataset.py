@@ -46,11 +46,11 @@ import adding_problem
 # Training Parameters
 # Training Parameters
 weight_learning_rate = 1e-3
-training_steps = 4000
+training_steps = 2000
 batch_size = 25
 buffer_size=500
 training_size=batch_size*training_steps
-epochs=100
+epochs=50
 test_size=10000
 display_step = 100
 grad_clip=100
@@ -72,11 +72,11 @@ testing_x, testing_y = adding_problem.get_batch(batch_size=test_size,time_steps=
 def _hinton_identity_initializer(shape,dtype=None,partition_info=None,verify_shape=None, max_val=1):
     if dtype is None:
         dtype=tf.float32
-    #extract second dimension 
+    #extract second dimension
     W_rec=tf.eye(shape[-1],dtype=dtype)
     new_shape=[shape[0]-shape[-1],shape[-1]]
     W_in=tf.random_normal(new_shape,mean=0,stddev=0.001)
-    return tf.concat([W_in,W_rec],axis=0) 
+    return tf.concat([W_in,W_rec],axis=0)
 
 ## define KeRNL unit
 def bptt_snn_all_states(x):
