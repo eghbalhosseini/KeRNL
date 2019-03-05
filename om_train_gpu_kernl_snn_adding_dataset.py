@@ -85,8 +85,7 @@ def kernl_snn_all_states(x):
                                                                  tau_refract=2.0,
                                                                  tau_m=20,
                                                                  noise_param=perturbation_std)
-        hidden_initial_state = hidden_layer_cell.zero_state(batch_size, dtype=tf.float32)
-        output_hidden, states_hidden = tf.nn.dynamic_rnn(hidden_layer_cell, dtype=tf.float32, inputs=x,initial_state=hidden_initial_state)
+        output_hidden, states_hidden = tf.nn.dynamic_rnn(hidden_layer_cell, dtype=tf.float32, inputs=x)
     with tf.variable_scope('output_layer') as scope :
         output_layer_cell=kernl_spiking_cell.output_spike_cell(num_units=num_output)
         output_voltage, voltage_states=tf.nn.dynamic_rnn(output_layer_cell,dtype=tf.float32,inputs=output_hidden.spike)
