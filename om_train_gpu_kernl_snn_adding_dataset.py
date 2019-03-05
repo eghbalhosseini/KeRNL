@@ -75,6 +75,15 @@ training_x, training_y = adding_problem.get_batch(batch_size=training_size,time_
 testing_x, testing_y = adding_problem.get_batch(batch_size=test_size,time_steps=time_steps)
 
 
+def _hinton_identity_initializer(shape,dtype=None,partition_info=None,verify_shape=None, max_val=1):
+    if dtype is None:
+        dtype=tf.float32
+    #extract second dimension 
+    W_rec=tf.eye(shape[-1],dtype=dtype)
+    new_shape=[shape[0]-shape[-1],shape[-1]]
+    W_in=tf.random_normal(new_shape,mean=0,stddev=0.001)
+    return tf.concat([W_in,W_rec],axis=0) 
+
 ## define KeRNL unit
 def kernl_snn_all_states(x):
     with tf.variable_scope('hidden_layer') as scope:
@@ -84,7 +93,8 @@ def kernl_snn_all_states(x):
                                                                  output_is_tuple=True,
                                                                  tau_refract=2.0,
                                                                  tau_m=20,
-                                                                 noise_param=perturbation_std)
+                                                                 noise_param=perturbation_std,
+                                                            kernel_initializer=_hinton_identity_initializer)
         output_hidden, states_hidden = tf.nn.dynamic_rnn(hidden_layer_cell, dtype=tf.float32, inputs=x)
     with tf.variable_scope('output_layer') as scope :
         output_layer_cell=kernl_spiking_cell.output_spike_cell(num_units=num_output)
