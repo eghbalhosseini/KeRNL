@@ -98,10 +98,10 @@ def _calculate_prob_spikes(x,threshold):
     """input - x : a 2D tensor with batch x n ex 10*1
     outputs a tensor with size batch x output_size, where outputsize is twice the size of thresholds_size
     """
-    shape_x=x.get_shape()
+    shape_x=tf.shape(x)
     #
-    logging.warn("%s: Please use float ", shape_x)
-    x_aux=tf.random_uniform(shape=[shape_x[0].value,shape_x[1].value],dtype=tf.float32)
+    logging.warn("%s: Please use float ", shape_x[0])
+    x_aux=tf.random_uniform(shape=shape_x,dtype=tf.float32)
     logging.warn("%s: Please use float ", x_aux.get_shape())
     res_out=tf.cast(tf.divide(tf.negative(tf.sign(x_aux-threshold)-1),2),tf.float32)
 
@@ -109,8 +109,8 @@ def _calculate_prob_spikes(x,threshold):
 ###########################################
 ###### definition of tuples for cells #####
 ###########################################
-_LSNNStateTuple = collections.namedtuple("LSNNStateTuple", ("v_mem","spike","S","Beta","b_threshold","t_reset"))
-_LSNNOutputTuple = collections.namedtuple("LSNNOutputTuple", ("v_mem","spike","S","Beta","b_threshold","t_reset"))
+_LSNNStateTuple = collections.namedtuple("LSNNStateTuple", ("v_mem","spike","S","b_threshold","t_reset"))
+_LSNNOutputTuple = collections.namedtuple("LSNNOutputTuple", ("v_mem","spike","S","b_threshold","t_reset"))
 
 class LSNNStateTuple(_LSNNStateTuple):
   """Tuple used by LSNN Cells for `state_variables `, and output state.
@@ -122,7 +122,7 @@ class LSNNStateTuple(_LSNNStateTuple):
 
   @property
   def dtype(self):
-    (v_mem,spike,S,Beta,b_threshold,t_reset) = self
+    (v_mem,spike,S,b_threshold,t_reset) = self
     if v_mem.dtype != spike.dtype:
       raise TypeError("Inconsistent internal state: %s vs %s" %
                       (str(v_mem.dtype), str(spike.dtype)))
@@ -136,7 +136,7 @@ class LSNNOutputTuple(_LSNNOutputTuple):
 
   @property
   def dtype(self):
-    (v_mem,spike,S,Beta,b_threshold,t_reset) = self
+    (v_mem,spike,S,b_threshold,t_reset) = self
     if v_mem.dtype != spike.dtype:
       raise TypeError("Inconsistent internal state: %s vs %s" %
                       (str(v_mem.dtype), str(spike.dtype)))
@@ -153,7 +153,7 @@ class conductance_spike_cell(tf.contrib.rnn.RNNCell):
   """
   def __init__(self,
                num_units,
-               tau_m=5.0,
+               tau_m=20.0,
                v_theta=1.0,
                v_reset=0.0,
                R_mem=2.0,
@@ -163,7 +163,6 @@ class conductance_spike_cell(tf.contrib.rnn.RNNCell):
                dt=1.0,
                beta_baseline=1.0,
                beta_coeff=.1,
-               gradient_gamma=0.3,
                activation=None,
                reuse=None,
                kernel_initializer=None,
@@ -183,7 +182,6 @@ class conductance_spike_cell(tf.contrib.rnn.RNNCell):
     self.dt=dt
     self.beta_baseline=beta_baseline
     self.beta_coeff=beta_coeff
-    self.gradient_gamma=gradient_gamma
     self.kernel_factor=np.divide(self.dt,np.multiply(self.R_mem,np.sqrt(self._num_units)))
     self._linear = None
     self._kernel_initializer = kernel_initializer
@@ -203,12 +201,10 @@ class conductance_spike_cell(tf.contrib.rnn.RNNCell):
                           self._num_units,
                           self._num_units,
                           self._num_units,
-                          self._num_units,
                           self._num_units) if self._state_is_tuple else self._num_units)
   @property
   def output_size(self):
     return (LSNNOutputTuple(self._num_units,
-                          self._num_units,
                           self._num_units,
                           self._num_units,
                           self._num_units,
@@ -222,15 +218,13 @@ class conductance_spike_cell(tf.contrib.rnn.RNNCell):
           v_mem:            [batch_size x self.state_size]`
           spike:            [batch_size x self.state_size]`
           S:                [batch_size x self.state_size]`
-          Beta:             [batch_size x self.state_size]`
           b_threshold       [batch_size x self.state_size]`
           t_reset           [batch_size x self.state_size]`
     Returns:
       A pair containing the new output, and the new state as SNNStateTuple
     """
-
     if self._state_is_tuple:
-        v_mem,spike,S,Beta,b_threshold,t_reset = state
+        v_mem,spike,S,b_threshold,t_reset = state
     else:
         logging.error("this cell only accept state as tuple ", self)
 
@@ -239,51 +233,26 @@ class conductance_spike_cell(tf.contrib.rnn.RNNCell):
                                     kernel_initializer=self._kernel_initializer,
                                     bias_initializer=self._bias_initializer)
 
-    # calculate factor for updating
-    alpha=tf.exp(tf.negative(tf.divide(self.dt,self.tau_m)))
-    rho=tf.exp(tf.negative(tf.divide(self.dt,self.tau_beta)))
-    # calculate input current
-    I_syn_new=self._linear([inputs,S])
-    # update voltage for eligible neurons
-    # reduce refractory period by dt
-    t_subtract= tf.subtract(t_reset,self.dt)
-    t_update=tf.clip_by_value(t_subtract,0.0,100)
-    # find which units are beyond their refractory period
-    eligilible_update=tf.cast(tf.less(t_update,self.dt),tf.float32)
-    not_eligilible_update=1-eligilible_update
-    # modify alpha so that only affect neurons that are beyond their refractory period
-    alpha_vec=tf.scalar_mul(alpha,eligilible_update)+not_eligilible_update
-    v_mem_update=tf.add(tf.multiply(alpha_vec,v_mem),tf.multiply(tf.multiply(1-alpha_vec,self.R_mem),I_syn_new))
-    # update threshold
-    b_threshold_new = tf.add(tf.scalar_mul(rho,b_threshold), tf.scalar_mul(1-rho,spike))
-    Beta_new = self.beta_baseline+ tf.multiply(self.beta_coeff,b_threshold_new)
-
-    # calculate crossings an new spikes
-    # first get the normalized membrane potential
-    v_mem_norm=tf.divide(tf.subtract(v_mem_update,Beta_new),Beta_new)
+    # compute outputs and states
+    I_syn=self._linear([inputs,S])
+    Beta= self.beta_baseline + tf.multiply(self.beta_coeff,b_threshold)
+    eligilible_update=tf.cast(tf.less(t_reset,self.dt),tf.float32)
+    v_mem_delta=tf.multiply(tf.multiply(tf.divide(tf.subtract(tf.scalar_mul(self.R_mem, I_syn),v_mem),self.tau_m),self.dt),eligilible_update)
+    v_mem_update=tf.add(v_mem,v_mem_delta)
+    v_mem_norm=tf.divide(tf.subtract(v_mem_update,Beta),Beta)
     spike_new=self._calculate_crossing(v_mem_norm)
-
-    t_reset_new=tf.add(tf.multiply(spike_new,self.tau_refract),t_update)
     v_reseting=tf.multiply(v_mem_update,spike_new)
     v_mem_new=tf.subtract(v_mem_update,v_reseting)
-
-    # update threshold
-    b_threshold_new = tf.add(tf.scalar_mul(rho,b_threshold), tf.scalar_mul(1-rho,spike))
-    Beta_new = self.beta_baseline+ tf.multiply(self.beta_coeff,b_threshold_new)
-
-    ## TODO make S dependent on spikes
-
-    #Implement synaptic conductance update
-    delta=tf.exp(tf.negative(tf.divide(self.dt,self.tau_s)))
-    S_update = tf.scalar_mul(delta,S)
+    b_threshold_new=tf.add(tf.multiply(self.dt,tf.divide(b_threshold,self.tau_beta)),spike_new)
+    t_update=tf.clip_by_value(tf.subtract(t_reset,self.dt),0.0,100)
+    t_reset_new=tf.add(tf.multiply(spike_new,self.tau_refract),t_update)
+    S_update=tf.subtract(S,tf.divide(tf.scalar_mul(self.dt,S),self.tau_s))
     S_new=tf.add(S_update,spike_new)
-
-    ## return variables
-
+    # return variables
     if self._state_is_tuple:
-        new_state = LSNNStateTuple( v_mem_new,spike_new, S_new,Beta_new,b_threshold_new,t_reset_new )
+        new_state = LSNNStateTuple( v_mem_new,spike_new, S_new,b_threshold_new,t_reset_new )
     if self._output_is_tuple:
-        new_output = LSNNOutputTuple( v_mem_new,spike_new, S_new,Beta_new,b_threshold_new,t_reset_new )
+        new_output = LSNNOutputTuple( v_mem_new,spike_new, S_new,b_threshold_new,t_reset_new )
     else:
         new_output = spike_new
     return new_output, new_state
@@ -333,15 +302,12 @@ class output_spike_cell(tf.contrib.rnn.RNNCell):
     v_mem = state
 
     if self._linear is None:
-
         self._linear = _Linear([inputs],self._num_units,True,kernel_initializer=self._kernel_initializer,bias_initializer=self._bias_initializer)
 
     # calculate new Isyn = W*S
+    
     I_syn_new=self._linear([inputs])
-
-    ## update membrane potential
-
-    # calculate factor for updating
+        # calculate factor for updating
     alpha=tf.exp(tf.negative(tf.divide(self.dt,self.tau_m)))
         # update voltage
     v_mem_new=tf.add(tf.scalar_mul(alpha,v_mem),I_syn_new)
@@ -349,9 +315,7 @@ class output_spike_cell(tf.contrib.rnn.RNNCell):
     ## return variables
     new_state =  v_mem_new
     new_output = v_mem_new
-
     return new_output, new_state
-
 
 ###########################################
 #### define input spiking cell ############
@@ -361,13 +325,9 @@ class output_spike_cell(tf.contrib.rnn.RNNCell):
 class input_spike_cell(tf.contrib.rnn.RNNCell):
     def __init__(self,
                num_units=80,
-               reuse=None,
-               kernel_initializer=None,
-               bias_initializer=None):
+               reuse=None):
         super(input_spike_cell, self).__init__(_reuse=reuse)
         self._num_units = num_units
-        self._kernel_initializer = kernel_initializer
-        self._bias_initializer = bias_initializer
         self._calculate_prob_spikes = _calculate_prob_spikes
     @property
     def state_size(self):

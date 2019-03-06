@@ -58,7 +58,7 @@ display_step = 100
 grad_clip=100
 # Network Parameters
 num_input = 2 # adding problem data input (first input are the random digits , second input is the mask)
-time_steps = 100
+time_steps = 50
 num_hidden = 100 # hidden layer num of features
 num_output = 1 # value of the addition estimation
 #

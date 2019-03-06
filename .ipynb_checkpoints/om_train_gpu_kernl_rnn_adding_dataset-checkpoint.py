@@ -48,32 +48,40 @@ import adding_problem
 # Training Parameters
 tensor_learning_rate = 1e-5
 weight_learning_rate = 1e-3
-training_steps = 4000
+training_steps = 2000
 buffer_size=500
 batch_size = 25
 training_size=batch_size*training_steps
-epochs=100
+epochs=50
 test_size=10000
 display_step = 100
 grad_clip=100
 # Network Parameters
 num_input = 2 # adding problem data input (first input are the random digits , second input is the mask)
-time_steps = 100
+time_steps = 50
 num_hidden = 100 # hidden layer num of features
 num_output = 1 # value of the addition estimation
 #
 # Noise Parameters
-perturbation_std=1e-5
+perturbation_std=1e-8
 
 #
 # save dir
-log_dir = "/om2/user/ehoseini/MyData/KeRNL/logs/kernl_rnn_addition_dataset/tanh_add_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir = "/om2/user/ehoseini/MyData/KeRNL/logs/kernl_rnn_addition_dataset/add_T_%1.0e_tanh_add_eta_W_%1.0e_eta_T_%1.0e_Noise_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(time_steps,weight_learning_rate,tensor_learning_rate,perturbation_std,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
 log_dir
 
 # create a training and testing dataset
 training_x, training_y = adding_problem.get_batch(batch_size=training_size,time_steps=time_steps)
 testing_x, testing_y = adding_problem.get_batch(batch_size=test_size,time_steps=time_steps)
 
+def _hinton_identity_initializer(shape,dtype=None,partition_info=None,verify_shape=None, max_val=1):
+    if dtype is None:
+        dtype=tf.float32
+    #extract second dimension
+    W_rec=tf.eye(shape[-1],dtype=dtype)
+    new_shape=[shape[0]-shape[-1],shape[-1]]
+    W_in=tf.random_normal(new_shape,mean=0,stddev=0.001)
+    return tf.concat([W_in,W_rec],axis=0)
 
 ## define KeRNL unit
 def kernl_rnn(x,kernel_weights,kernel_bias):
@@ -84,7 +92,8 @@ def kernl_rnn(x,kernel_weights,kernel_bias):
                                                       time_steps=time_steps,
                                                       noise_param=perturbation_std,
                                                       sensitivity_initializer=tf.initializers.identity
-                                                      ,activation="tanh")
+                                                      ,activation="tanh",
+                                                      kernel_initializer=_hinton_identity_initializer)
         # Get KeRNL cell output
         kernel_outputs, kernel_states = tf.nn.dynamic_rnn(kernl_rnn_unit, inputs=x, dtype=tf.float32,time_major=False)
         kernl_rnn_output=tf.matmul(kernel_outputs[:,-1,:], kernel_weights) + kernel_bias

@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def get_batch(batch_size=25, time_steps=100):
   """Generate the adding problem dataset
   source : https://github.com/batzner/indrnn/blob/master/examples/addition_rnn.py
