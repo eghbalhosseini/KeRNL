@@ -63,7 +63,7 @@ num_hidden = 100 # hidden layer num of features
 num_output = 1 # value of the addition estimation
 #
 # Noise Parameters
-perturbation_std=1e-8
+perturbation_std=1e-10
 
 #
 # save dir
