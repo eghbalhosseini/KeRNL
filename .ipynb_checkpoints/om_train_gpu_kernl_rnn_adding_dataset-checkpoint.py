@@ -54,7 +54,7 @@ batch_size = 25
 training_size=batch_size*training_steps
 epochs=50
 test_size=10000
-display_step = 100
+display_step = 10
 grad_clip=100
 # Network Parameters
 num_input = 2 # adding problem data input (first input are the random digits , second input is the mask)

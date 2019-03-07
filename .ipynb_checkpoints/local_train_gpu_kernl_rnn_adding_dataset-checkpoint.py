@@ -48,7 +48,7 @@ tensor_learning_rate = 1e-5
 weight_learning_rate = 1e-3
 training_steps = 4000
 buffer_size=500
-batch_size = 20
+batch_size = 25
 training_size=batch_size*training_steps
 epochs=100
 test_size=10000
@@ -61,7 +61,7 @@ num_hidden = 100 # hidden layer num of features
 num_output = 1 # value of the addition estimation
 #
 # Noise Parameters
-perturbation_std=1e-10
+perturbation_std=1e-5
 
 #
 # save dir
@@ -78,9 +78,7 @@ def _hinton_identity_initializer(shape,dtype=None,partition_info=None,verify_sha
     #extract second dimension
     W_rec=tf.eye(shape[-1],dtype=dtype)
     new_shape=[shape[0]-shape[-1],shape[-1]]
-    W_in = tf.get_variable("W_in", shape=new_shape,
-           initializer=tf.contrib.layers.xavier_initializer())
-    #W_in=tf.random_normal(new_shape,mean=0,stddev=0.001)
+    W_in=tf.random_normal(new_shape,mean=0,stddev=0.001)
     return tf.concat([W_in,W_rec],axis=0)
 
 ## define KeRNL unit
@@ -91,10 +89,9 @@ def kernl_rnn(x,kernel_weights,kernel_bias):
                                                       num_inputs=num_input,
                                                       time_steps=time_steps,
                                                       noise_param=perturbation_std,
-                                                      sensitivity_initializer=tf.contrib.layers.xavier_initializer()
+                                                      sensitivity_initializer=tf.initializers.identity
                                                       ,activation="tanh",
-                                                      kernel_initializer=_hinton_identity_initializer,
-                                                      bias_initializer=tf.contrib.layers.xavier_initializer())
+                                                      kernel_initializer=_hinton_identity_initializer)
         # Get KeRNL cell output
         kernel_outputs, kernel_states = tf.nn.dynamic_rnn(kernl_rnn_unit, inputs=x, dtype=tf.float32,time_major=False)
         kernl_rnn_output=tf.matmul(kernel_outputs[:,-1,:], kernel_weights) + kernel_bias
