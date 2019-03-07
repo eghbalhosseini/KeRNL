@@ -153,7 +153,7 @@ class kernl_rnn_cell(tf.contrib.rnn.RNNCell):
 
         # temporal_filter
         if temporal_filter_initializer is None:
-            self._temporal_filter_initializer=tf.initializers.random_uniform(maxval=1/self._time_steps)
+            self._temporal_filter_initializer=tf.initializers.random_uniform(maxval=2/self._time_steps)
         else:
             self._temporal_filter_initializer=temporal_filter_initializer
 
