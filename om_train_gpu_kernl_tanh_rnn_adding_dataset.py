@@ -94,7 +94,7 @@ def kernl_rnn(x,kernel_weights,kernel_bias):
                                                       num_inputs=num_input,
                                                       time_steps=time_steps,
                                                       noise_param=perturbation_std,
-                                                      sensitivity_initializer=tf.contrib.layers.xavier_initializer())
+                                                      sensitivity_initializer=tf.contrib.layers.xavier_initializer()
                                                       ,activation="tanh",
                                                       kernel_initializer=tf.contrib.layers.xavier_initializer()
                                                       )
