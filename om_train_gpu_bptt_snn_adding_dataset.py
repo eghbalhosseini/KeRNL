@@ -46,28 +46,27 @@ import adding_problem
 # Training Parameters
 # Training Parameters
 weight_learning_rate = 1e-3
-training_steps = 2000
+training_steps = 4000
 batch_size = 25
-buffer_size=500
 training_size=batch_size*training_steps
 epochs=50
-test_size=10000
-display_step = 100
+test_size=1000
+display_step = 50
 grad_clip=100
+buffer_size=600
 # Network Parameters
 num_input = 2 # adding problem data input (first input are the random digits , second input is the mask)
-time_steps = 100
+time_steps = 50
+num_units_input_layer=50
 num_hidden = 100 # hidden layer num of features
 num_output = 1 # value of the addition estimation
 #
-
 # save dir
-log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/bptt_snn_addition_dataset/bptt_snn_add_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir = "om/user/ehoseini/MyData/KeRNL/logs/bptt_snn_addition_dataset/bp_snn_add_T_%1.0e_eta_W_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_epoch_%1.0e_run_%s" %(time_steps,weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps,epochs, datetime.now().strftime("%Y%m%d_%H%M"))
 log_dir
 # create a training and testing dataset
 training_x, training_y = adding_problem.get_batch(batch_size=training_size,time_steps=time_steps)
 testing_x, testing_y = adding_problem.get_batch(batch_size=test_size,time_steps=time_steps)
-
 
 def _hinton_identity_initializer(shape,dtype=None,partition_info=None,verify_shape=None, max_val=1):
     if dtype is None:
@@ -79,10 +78,13 @@ def _hinton_identity_initializer(shape,dtype=None,partition_info=None,verify_sha
     return tf.concat([W_in,W_rec],axis=0)
 
 ## define KeRNL unit
-def bptt_snn_all_states(x):
+def bptt_snn_all_states(x,context):
+    with tf.variable_scope('input_layer') as scope:
+        input_layer_cell=spiking_cell.input_spike_cell(num_units=num_units_input_layer)
+        output_l1, states_l1 = tf.nn.dynamic_rnn(input_layer_cell, dtype=tf.float32, inputs=x)
     with tf.variable_scope('hidden_layer') as scope:
-        hidden_layer_cell=spiking_cell.conductance_spike_cell(num_units=num_hidden,output_is_tuple=True,tau_refract=1.0,tau_m=20.0,kernel_initializer=_hinton_identity_initializer)
-        output_hidden, states_hidden = tf.nn.dynamic_rnn(hidden_layer_cell, dtype=tf.float32, inputs=x)
+        hidden_layer_cell=spiking_cell.conductance_spike_cell(num_units=num_hidden,output_is_tuple=True,tau_refract=2.0,tau_m=20.0,kernel_initializer=tf.contrib.layers.xavier_initializer())
+        output_hidden, states_hidden = tf.nn.dynamic_rnn(hidden_layer_cell, dtype=tf.float32, inputs=tf.concat([output_l1,context],-1))
     with tf.variable_scope('output_layer') as scope :
         output_layer_cell=spiking_cell.output_spike_cell(num_units=num_output)
         output_voltage, voltage_states=tf.nn.dynamic_rnn(output_layer_cell,dtype=tf.float32,inputs=output_hidden.spike)
@@ -101,15 +103,15 @@ with graph.as_default():
     iter = dataset.make_initializable_iterator()
     inputs,labels =iter.get_next()
     # define a function for extraction of variable names
-    bptt_output,bptt_hidden_states=bptt_snn_all_states(inputs)
+    bptt_output,bptt_hidden_states=bptt_snn_all_states(tf.expand_dims(inputs[:,:,0],axis=-1),tf.expand_dims(inputs[:,:,1],axis=-1))
     trainables=tf.trainable_variables()
     variable_names=[v.name for v in tf.trainable_variables()]
     #
-    find_joing_index = lambda x, name_1,name_2 : [a and b for a,b in zip([np.unicode_.find(k.name, name_1)>-1 for k in x] ,[np.unicode_.find(k.name, name_2)>-1 for k in x])].index(True)
+    find_join_index = lambda x, name_1,name_2 : [a and b for a,b in zip([np.unicode_.find(k.name, name_1)>-1 for k in x] ,[np.unicode_.find(k.name, name_2)>-1 for k in x])].index(True)
     # find trainable parameters for bptt
     with tf.name_scope('bptt_Trainables') as scope:
-        bptt_output_weight_index= find_joing_index(trainables,'output_layer','kernel')
-        bptt_kernel_index= find_joing_index(trainables,'hidden_layer','kernel')
+        bptt_output_weight_index= find_join_index(trainables,'output_layer','kernel')
+        bptt_kernel_index= find_join_index(trainables,'hidden_layer','kernel')
         bptt_weight_training_indices=np.asarray([bptt_kernel_index,bptt_output_weight_index],dtype=np.int)
         bptt_weight_trainables= [trainables[k] for k in bptt_weight_training_indices]
 
@@ -138,20 +140,22 @@ with graph.as_default():
                 ##################
 
     with tf.name_scope("bptt_weight_summaries") as scope:
-        # bptt sensitivity tensor
+
+        #
         tf.summary.histogram('bptt_kernel_grad',bptt_grad_cost_trainables[0]+1e-10)
-        tf.summary.histogram('bptt_kernel', bptt_grad_cost_trainables[0]+1e-10)
+        tf.summary.histogram('bptt_kernel', trainables[0]+1e-10)
                     # bptt output weight
         tf.summary.histogram('bptt_output_weight_grad',bptt_grad_cost_trainables[1]+1e-10)
-        tf.summary.histogram('bptt_output_weights', bptt_grad_cost_trainables[1]+1e-10)
+        tf.summary.histogram('bptt_output_weights', trainables[1]+1e-10)
                     # bptt loss and accuracy
         tf.summary.scalar('bptt_loss_output_prediction',bptt_loss_output_prediction+1e-10)
 
         # bptt senstivity tensor and temporal filter
-        bptt_tensor_merged_summary_op=tf.summary.merge_all(scope="bptt_weight_summaries")
+        bptt_merged_summary_op=tf.summary.merge_all(scope="bptt_weight_summaries")
 
     init = tf.global_variables_initializer()
     saver = tf.train.Saver()
+
 
 ###################################################
 
@@ -169,16 +173,17 @@ with tf.Session(graph=graph) as sess:
     for epoch in range(epochs):
         sess.run(iter.initializer,feed_dict={X: training_x, Y: training_y , BATCH_SIZE: batch_size})
         for step in range(training_steps):
-            bptt_weight_train, bptt_loss=sess.run([bptt_weight_train_op,bptt_loss_output_prediction])
-            if step % display_step==0:
-                bptt_tensor_merged_summary=sess.run(bptt_tensor_merged_summary_op)
-                tb_writer.add_summary(bptt_tensor_merged_summary, global_step=epoch*training_steps+step+1)
-                print('Epoch: {}, Batch: {} , total batch {}, total trials: {},bptt train Loss: {:.3f}'.format(epoch+1,step + 1,epoch*training_steps+step+1,(epoch*training_steps+step+1)*batch_size, bptt_loss))
+            bptt_train, bptt_loss,bptt_merged_summary=sess.run([bptt_weight_train_op,bptt_loss_output_prediction,bptt_merged_summary_op])
+            tb_writer.add_summary(bptt_merged_summary, global_step=step)
+
+            if step % display_step==0 or step==1 :
+                print('Epoch: {}, Batch: {},bptt train Loss: {:.3f}'.format(epoch+1,step + 1, bptt_loss))
+
         # run test at the end of each epoch
         sess.run(iter.initializer, feed_dict={ X: testing_x, Y: testing_y, BATCH_SIZE: testing_x.shape[0]})
-        bptt_test_loss,bptt_evaluate_summary=sess.run([bptt_loss_cross_validiation,bptt_evaluate_summary_op])
-        tb_writer.add_summary(bptt_evaluate_summary, global_step=epoch*training_steps+training_steps+1)
-        print('cross validation loss {:.3f} at the end of epoch {}'.format(bptt_test_loss,epoch+1))
+        bptt_test_loss, bptt_evaluate_summary=sess.run([bptt_loss_cross_validiation,bptt_evaluate_summary_op])
+        tb_writer.add_summary(bptt_evaluate_summary, global_step=step)
+        print('Epoch: {}, cross validation loss :{:.3f}'.format(epoch+1,bptt_test_loss))
     print("Optimization Finished!")
-    save_path = saver.save(sess, log_dir+"/model.ckpt", global_step=epoch*training_steps+training_steps,write_meta_graph=True)
+    save_path = saver.save(sess, log_dir+"/model.ckpt", global_step=step,write_meta_graph=True)
     print("Model saved in path: %s" % save_path)
