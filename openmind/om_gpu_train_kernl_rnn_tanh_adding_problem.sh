@@ -10,5 +10,5 @@
 #SBATCH --output=om_gpu_train_results_kernl_rnn_tanh_adding_problem.out
 
 module add openmind/singularity
-export SINGULARITY_CACHEDIR=/om2/user/`whoami`/st/
-singularity exec --nv -B /om2:/om2 /om2/user/`whoami`/simg_images/om_image_tensorflow1-12_gpu.simg /usr/bin/python3 ~/MyCodes/KeRNL/om_train_gpu_kernl_rnn_adding_problem.py
+export SINGULARITY_CACHEDIR=/om/user/`whoami`/st/
+singularity exec --nv -B /om:/om /om/user/`whoami`/simg_images/om_image_tensorflow1-12_gpu.simg /usr/bin/python3 ~/MyCodes/KeRNL/om_train_gpu_kernl_rnn_adding_problem.py

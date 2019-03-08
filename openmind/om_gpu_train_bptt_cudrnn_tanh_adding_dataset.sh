@@ -10,5 +10,5 @@
 #SBATCH --output=om_gpu_train_results_bptt_cudrnn_tanh_adding_dataset.out
 
 module add openmind/singularity
-export SINGULARITY_CACHEDIR=/om2/user/`whoami`/st/
-singularity exec --nv -B /om2:/om2 /om2/user/`whoami`/simg_images/om_image_tensorflow1-12_gpu.simg /usr/bin/python3 ~/MyCodes/KeRNL/om_train_gpu_bptt_cudrnn_tanh_adding_dataset.py
+export SINGULARITY_CACHEDIR=/om/user/`whoami`/st/
+singularity exec --nv -B /om:/om /om/user/`whoami`/simg_images/om_image_tensorflow1-12_gpu.simg /usr/bin/python3 ~/MyCodes/KeRNL/om_train_gpu_bptt_cudrnn_tanh_adding_dataset.py
