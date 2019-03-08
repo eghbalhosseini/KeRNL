@@ -47,12 +47,12 @@ import adding_problem
 tensor_learning_rate = 1e-5
 weight_learning_rate = 1e-3
 training_steps = 4000
-buffer_size=600
-batch_size = 20
+buffer_size=700
+batch_size = 25
 training_size=batch_size*training_steps
-epochs=50
-test_size=1000
-display_step = 100
+epochs=100
+test_size=10000
+display_step = 10
 grad_clip=100
 # Network Parameters
 num_input = 2 # adding problem data input (first input are the random digits , second input is the mask)
