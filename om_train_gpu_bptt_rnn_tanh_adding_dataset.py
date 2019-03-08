@@ -63,7 +63,7 @@ num_output = 1 # value of the addition estimation
 #
 
 # save dir
-log_dir = "/om2/user/ehoseini/MyData/KeRNL/logs/bptt_rnn_addition_dataset/rnn_tanh_add_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/bptt_rnn_addition_dataset/rnn_tanh_add_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
 log_dir
 # create a training and testing dataset
 training_x, training_y = adding_problem.get_batch(batch_size=training_size,time_steps=time_steps)
@@ -74,11 +74,11 @@ testing_x, testing_y = adding_problem.get_batch(batch_size=test_size,time_steps=
 def _hinton_identity_initializer(shape,dtype=None,partition_info=None,verify_shape=None, max_val=1):
     if dtype is None:
         dtype=tf.float32
-    #extract second dimension 
+    #extract second dimension
     W_rec=tf.eye(shape[-1],dtype=dtype)
     new_shape=[shape[0]-shape[-1],shape[-1]]
     W_in=tf.random_normal(new_shape,mean=0,stddev=0.001)
-    return tf.concat([W_in,W_rec],axis=0) 
+    return tf.concat([W_in,W_rec],axis=0)
 
 def bptt_rnn(x,rnn_weights,rnn_bias):
     # Define a KeRNL cell, the initialization is done inside the cell with default initializers

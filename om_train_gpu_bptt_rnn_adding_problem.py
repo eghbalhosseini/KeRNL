@@ -58,7 +58,7 @@ num_hidden = 100 # hidden layer num of features
 num_output = 1 # value of the addition estimation
 #
 # save dir
-log_dir = "/om2/user/ehoseini/MyData/KeRNL/logs/bptt_rnn_addition/tanh_add_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/bptt_rnn_addition/tanh_add_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
 log_dir
 
 

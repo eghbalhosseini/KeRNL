@@ -67,7 +67,7 @@ perturbation_std=1e-10
 
 #
 # save dir
-log_dir = "/om2/user/ehoseini/MyData/KeRNL/logs/kernl_rnn_addition_dataset/add_T_%1.0e_tanh_add_eta_W_%1.0e_eta_T_%1.0e_Noise_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(time_steps,weight_learning_rate,tensor_learning_rate,perturbation_std,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/kernl_rnn_addition_dataset/add_T_%1.0e_tanh_add_eta_W_%1.0e_eta_T_%1.0e_Noise_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(time_steps,weight_learning_rate,tensor_learning_rate,perturbation_std,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
 log_dir
 
 # create a training and testing dataset
