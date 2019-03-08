@@ -48,18 +48,18 @@ import adding_problem
 # Training Parameters
 tensor_learning_rate = 1e-5
 weight_learning_rate = 1e-3
-training_steps = 2000
-buffer_size=500
+training_steps = 4000
+buffer_size=700
 batch_size = 25
 training_size=batch_size*training_steps
-epochs=50
+epochs=100
 test_size=10000
 display_step = 10
 grad_clip=100
 # Network Parameters
 num_input = 2 # adding problem data input (first input are the random digits , second input is the mask)
-time_steps = 50
-num_hidden = 50 # hidden layer num of features
+time_steps = 200
+num_hidden = 100 # hidden layer num of features
 num_output = 1 # value of the addition estimation
 #
 # Noise Parameters
