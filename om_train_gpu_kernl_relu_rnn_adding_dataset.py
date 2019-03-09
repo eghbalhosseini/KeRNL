@@ -56,8 +56,8 @@ display_step = 10
 grad_clip=100
 # Network Parameters
 num_input = 2 # adding problem data input (first input are the random digits , second input is the mask)
-time_steps = 50
-num_hidden = 50 # hidden layer num of features
+time_steps = 200
+num_hidden = 100 # hidden layer num of features
 num_output = 1 # value of the addition estimation
 #
 # Noise Parameters
@@ -65,7 +65,7 @@ perturbation_std=1e-10
 
 #
 # save dir
-log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/kernl_rnn_addition_dataset/relu_add_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/kernl_rnn_addition_dataset/relu_add_T_%1.e_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(time_steps,weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
 log_dir
 
 # create a training and testing dataset

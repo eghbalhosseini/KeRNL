@@ -68,7 +68,7 @@ perturbation_std=1e-8
 
 #
 # save dir
-log_dir = os.environ['HOME']+"/MyData/KeRNL/logs/kernl_snn_addition_dataset/tanh_add_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir = os.environ['HOME']+"/MyData/KeRNL/logs/kernl_snn_addition_dataset/tanh_add_T_%1.0e_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(time_steps,weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
 log_dir
 
 # create a training and testing dataset
