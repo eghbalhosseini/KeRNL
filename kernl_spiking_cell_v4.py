@@ -112,11 +112,11 @@ def _calculate_prob_spikes(x,threshold):
     """input - x : a 2D tensor with batch x n ex 10*1
     outputs a tensor with size batch x output_size, where outputsize is twice the size of thresholds_size
     """
-    shape_x=x.get_shape()
+    shape_x=tf.shape(x)
     #
-    #logging.warn("%s: Please use float ", shape_x)
-    x_aux=tf.random_uniform(shape=[shape_x[0].value,shape_x[1].value],dtype=tf.float32)
-    #logging.warn("%s: Please use float ", x_aux.get_shape())
+    logging.warn("%s: Please use float ", shape_x[0])
+    x_aux=tf.random_uniform(shape=shape_x,dtype=tf.float32)
+    logging.warn("%s: Please use float ", x_aux.get_shape())
     res_out=tf.cast(tf.divide(tf.negative(tf.sign(x_aux-threshold)-1),2),tf.float32)
 
     return res_out
@@ -426,13 +426,9 @@ class output_spike_cell(tf.contrib.rnn.RNNCell):
 class input_spike_cell(tf.contrib.rnn.RNNCell):
     def __init__(self,
                num_units=80,
-               reuse=None,
-               kernel_initializer=None,
-               bias_initializer=None):
+               reuse=None):
         super(input_spike_cell, self).__init__(_reuse=reuse)
         self._num_units = num_units
-        self._kernel_initializer = kernel_initializer
-        self._bias_initializer = bias_initializer
         self._calculate_prob_spikes = _calculate_prob_spikes
     @property
     def state_size(self):
@@ -448,6 +444,7 @@ class input_spike_cell(tf.contrib.rnn.RNNCell):
         new_state =  new_spikes
         new_output = new_spikes
         return new_output, new_state
+
 
 
 ###########################################

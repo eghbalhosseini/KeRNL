@@ -45,15 +45,15 @@ import adding_problem
 
 # Training Parameters
 # Training Parameters
-weight_learning_rate = 1e-8
-training_steps = 1000
+weight_learning_rate = 1e-3
+training_steps = 4000
 batch_size = 25
 training_size=batch_size*training_steps
-epochs=5
+epochs=50
 test_size=1000
 display_step = 50
 grad_clip=100
-buffer_size=200
+buffer_size=600
 # Network Parameters
 num_input = 2 # adding problem data input (first input are the random digits , second input is the mask)
 time_steps = 50
@@ -62,7 +62,7 @@ num_hidden = 100 # hidden layer num of features
 num_output = 1 # value of the addition estimation
 #
 # save dir
-log_dir = os.environ['HOME']+"/MyData/KeRNL/logs/bptt_snn_addition_dataset/bp_snn_add_T_%1.0e_eta_W_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_epoch_%1.0e_run_%s" %(time_steps,weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps,epochs, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir = "om/user/ehoseini/MyData/KeRNL/logs/bptt_snn_addition_dataset/bp_snn_add_T_%1.0e_eta_W_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_epoch_%1.0e_run_%s" %(time_steps,weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps,epochs, datetime.now().strftime("%Y%m%d_%H%M"))
 log_dir
 # create a training and testing dataset
 training_x, training_y = adding_problem.get_batch(batch_size=training_size,time_steps=time_steps)
@@ -83,7 +83,7 @@ def bptt_snn_all_states(x,context):
         input_layer_cell=spiking_cell.input_spike_cell(num_units=num_units_input_layer)
         output_l1, states_l1 = tf.nn.dynamic_rnn(input_layer_cell, dtype=tf.float32, inputs=x)
     with tf.variable_scope('hidden_layer') as scope:
-        hidden_layer_cell=spiking_cell.conductance_spike_cell(num_units=num_hidden,output_is_tuple=True,tau_refract=2.0,tau_m=20.0,kernel_initializer=_hinton_identity_initializer)
+        hidden_layer_cell=spiking_cell.conductance_spike_cell(num_units=num_hidden,output_is_tuple=True,tau_refract=2.0,tau_m=20.0,kernel_initializer=tf.contrib.layers.xavier_initializer())
         output_hidden, states_hidden = tf.nn.dynamic_rnn(hidden_layer_cell, dtype=tf.float32, inputs=tf.concat([output_l1,context],-1))
     with tf.variable_scope('output_layer') as scope :
         output_layer_cell=spiking_cell.output_spike_cell(num_units=num_output)
@@ -155,8 +155,8 @@ with graph.as_default():
 
     init = tf.global_variables_initializer()
     saver = tf.train.Saver()
-    
-    
+
+
 ###################################################
 
 Path(log_dir).mkdir(exist_ok=True, parents=True)
@@ -165,23 +165,23 @@ for f in filelist:
     os.remove(os.path.join(log_dir, f))
 ####################################################
 
-# write graph into tensorboard 
+# write graph into tensorboard
 tb_writer = tf.summary.FileWriter(log_dir,graph)
-# run a training session 
+# run a training session
 with tf.Session(graph=graph) as sess:
     sess.run(init)
     for epoch in range(epochs):
         sess.run(iter.initializer,feed_dict={X: training_x, Y: training_y , BATCH_SIZE: batch_size})
-        for step in range(training_steps): 
+        for step in range(training_steps):
             bptt_train, bptt_loss,bptt_merged_summary=sess.run([bptt_weight_train_op,bptt_loss_output_prediction,bptt_merged_summary_op])
             tb_writer.add_summary(bptt_merged_summary, global_step=step)
 
-            if step % display_step==0 or step==1 : 
+            if step % display_step==0 or step==1 :
                 print('Epoch: {}, Batch: {},bptt train Loss: {:.3f}'.format(epoch+1,step + 1, bptt_loss))
-                
-        # run test at the end of each epoch 
-        sess.run(iter.initializer, feed_dict={ X: testing_x, Y: testing_y, BATCH_SIZE: testing_x.shape[0]})    
-        bptt_test_loss, bptt_evaluate_summary=sess.run([bptt_loss_cross_validiation,bptt_evaluate_summary_op])        
+
+        # run test at the end of each epoch
+        sess.run(iter.initializer, feed_dict={ X: testing_x, Y: testing_y, BATCH_SIZE: testing_x.shape[0]})
+        bptt_test_loss, bptt_evaluate_summary=sess.run([bptt_loss_cross_validiation,bptt_evaluate_summary_op])
         tb_writer.add_summary(bptt_evaluate_summary, global_step=step)
         print('Epoch: {}, cross validation loss :{:.3f}'.format(epoch+1,bptt_test_loss))
     print("Optimization Finished!")

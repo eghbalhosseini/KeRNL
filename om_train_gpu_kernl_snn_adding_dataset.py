@@ -1,10 +1,8 @@
 # python libraries
 import numpy as np
-import matplotlib.pyplot as plt
 import collections
 import hashlib
 import numbers
-import matplotlib.cm as cm
 from sys import getsizeof
 from datetime import datetime
 from pathlib import Path
@@ -47,27 +45,30 @@ import adding_problem
 # Training Parameters
 # Training Parameters
 tensor_learning_rate = 1e-5
-weight_learning_rate = 1e-5
-training_steps = 2000
-buffer_size=500
+weight_learning_rate = 1e-3
+training_steps = 4000
+buffer_size=700
 batch_size = 25
 training_size=batch_size*training_steps
-epochs=50
+epochs=100
 test_size=10000
 display_step = 100
 grad_clip=100
 # Network Parameters
-num_input = 2 # adding problem data input (first input are the random digits , second input is the mask)
+# adding problem data input (first input are the random digits , second input is the mask)
 time_steps = 100
 num_hidden = 100 # hidden layer num of features
 num_output = 1 # value of the addition estimation
 #
+num_input=2
+num_units_input_layer=50
+num_context_unit=1
 # Noise Parameters
-perturbation_std=1e-5
+perturbation_std=1e-8
 
 #
 # save dir
-log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/kernl_snn_addition_dataset/tanh_add_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir = "om/user/ehoseini/MyData/KeRNL/logs/kernl_snn_addition_dataset/tanh_add_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
 log_dir
 
 # create a training and testing dataset
@@ -85,17 +86,21 @@ def _hinton_identity_initializer(shape,dtype=None,partition_info=None,verify_sha
     return tf.concat([W_in,W_rec],axis=0)
 
 ## define KeRNL unit
-def kernl_snn_all_states(x):
+def kernl_snn_all_states(x,context):
+    with tf.variable_scope('input_layer') as scope:
+        input_layer_cell=kernl_spiking_cell.input_spike_cell(num_units=num_units_input_layer)
+        output_l1, states_l1 = tf.nn.dynamic_rnn(input_layer_cell, dtype=tf.float32, inputs=x)
     with tf.variable_scope('hidden_layer') as scope:
         hidden_layer_cell=kernl_spiking_cell.kernl_spike_Cell(num_units=num_hidden,
-                                                                 num_inputs=num_input,
+                                                                 num_inputs=num_units_input_layer+num_context_unit,
                                                                  time_steps=time_steps,
                                                                  output_is_tuple=True,
                                                                  tau_refract=2.0,
                                                                  tau_m=20,
                                                                  noise_param=perturbation_std,
-                                                            kernel_initializer=_hinton_identity_initializer)
-        output_hidden, states_hidden = tf.nn.dynamic_rnn(hidden_layer_cell, dtype=tf.float32, inputs=x)
+                                                                 sensitivity_initializer=tf.contrib.layers.xavier_initializer(),
+                                                                 kernel_initializer=tf.contrib.layers.xavier_initializer())
+        output_hidden, states_hidden = tf.nn.dynamic_rnn(hidden_layer_cell, dtype=tf.float32, inputs=tf.concat([output_l1,context],-1))
     with tf.variable_scope('output_layer') as scope :
         output_layer_cell=kernl_spiking_cell.output_spike_cell(num_units=num_output)
         output_voltage, voltage_states=tf.nn.dynamic_rnn(output_layer_cell,dtype=tf.float32,inputs=output_hidden.spike)
@@ -116,7 +121,7 @@ with graph.as_default():
     iter = dataset.make_initializable_iterator()
     inputs,labels =iter.get_next()
     #
-    kernl_output,kernl_hidden_states=kernl_snn_all_states(inputs)
+    kernl_output,kernl_hidden_states=kernl_snn_all_states(tf.expand_dims(inputs[:,:,0],axis=-1),tf.expand_dims(inputs[:,:,1],axis=-1))
     trainables=tf.trainable_variables()
     variable_names=[v.name for v in tf.trainable_variables()]
     #
