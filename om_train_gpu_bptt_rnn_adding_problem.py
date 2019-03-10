@@ -188,5 +188,5 @@ with tf.Session(graph=graph) as sess:
     #test_label = mnist.test.labels[:test_len]
     #print("Testing Accuracy:",
     #    sess.run(loss_output_prediction, feed_dict={X: test_data, Y: test_label}))
-    save_path = saver.save(sess, log_dir+"/model.ckpt", global_step=step,write_meta_graph=True)
+    save_path = saver.save(sess, log_dir+"/model.ckpt",write_meta_graph=True)
     print("Model saved in path: %s" % save_path)

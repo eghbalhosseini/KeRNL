@@ -44,14 +44,13 @@ import adding_problem
 
 
 # Training Parameters
-# Training Parameters
 weight_learning_rate = 1e-3
 training_steps = 4000
 batch_size = 25
 training_size=batch_size*training_steps
-epochs=50
+epochs=2
 test_size=1000
-display_step = 50
+display_step = 200
 grad_clip=100
 buffer_size=600
 # Network Parameters
@@ -61,10 +60,10 @@ num_units_input_layer=50
 num_hidden = 100 # hidden layer num of features
 num_output = 1 # value of the addition estimation
 #
+#
 # save dir
-log_dir = "om/user/ehoseini/MyData/KeRNL/logs/bptt_snn_addition_dataset/bp_snn_add_T_%1.0e_eta_W_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_epoch_%1.0e_run_%s" %(time_steps,weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps,epochs, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir = os.environ['HOME']+"/MyData/KeRNL/logs/bptt_snn_addition_dataset/bp_snn_add_T_%1.0e_eta_W_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_epoch_%1.0e_run_%s" %(time_steps,weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps,epochs, datetime.now().strftime("%Y%m%d_%H%M"))
 log_dir
-# create a training and testing dataset
 training_x, training_y = adding_problem.get_batch(batch_size=training_size,time_steps=time_steps)
 testing_x, testing_y = adding_problem.get_batch(batch_size=test_size,time_steps=time_steps)
 
@@ -140,19 +139,13 @@ with graph.as_default():
                 ##################
 
     with tf.name_scope("bptt_weight_summaries") as scope:
-
-        #
         tf.summary.histogram('bptt_kernel_grad',bptt_grad_cost_trainables[0]+1e-10)
         tf.summary.histogram('bptt_kernel', trainables[0]+1e-10)
-                    # bptt output weight
         tf.summary.histogram('bptt_output_weight_grad',bptt_grad_cost_trainables[1]+1e-10)
         tf.summary.histogram('bptt_output_weights', trainables[1]+1e-10)
-                    # bptt loss and accuracy
         tf.summary.scalar('bptt_loss_output_prediction',bptt_loss_output_prediction+1e-10)
-
         # bptt senstivity tensor and temporal filter
         bptt_merged_summary_op=tf.summary.merge_all(scope="bptt_weight_summaries")
-
     init = tf.global_variables_initializer()
     saver = tf.train.Saver()
 

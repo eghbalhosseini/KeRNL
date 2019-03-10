@@ -179,5 +179,5 @@ with tf.Session(graph=graph) as sess:
         tb_writer.add_summary(bptt_evaluate_summary, global_step=step)
         print('Epoch: {}, cross validation loss :{:.3f}'.format(epoch+1,bptt_test_loss))
     print("Optimization Finished!")
-    save_path = saver.save(sess, log_dir+"/model.ckpt", global_step=step,write_meta_graph=True)
+    save_path = saver.save(sess, log_dir+"/model.ckpt",write_meta_graph=True)
     print("Model saved in path: %s" % save_path)
