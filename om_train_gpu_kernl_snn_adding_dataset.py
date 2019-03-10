@@ -44,7 +44,7 @@ import adding_problem
 
 # Training Parameters
 # Training Parameters
-tensor_learning_rate = 1e-5
+tensor_learning_rate = 1e-6
 weight_learning_rate = 1e-3
 training_steps = 4000
 buffer_size=700
@@ -52,7 +52,7 @@ batch_size = 25
 training_size=batch_size*training_steps
 epochs=100
 test_size=10000
-display_step = 100
+display_step = 200
 grad_clip=100
 # Network Parameters
 # adding problem data input (first input are the random digits , second input is the mask)
@@ -64,11 +64,11 @@ num_input=2
 num_units_input_layer=50
 num_context_unit=1
 # Noise Parameters
-perturbation_std=1e-8
+perturbation_std=1e-10
 
 #
 # save dir
-log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/kernl_snn_addition_dataset/tanh_add_T_%1.0e_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(time_steps,weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/kernl_snn_addition_dataset/kernl_snn_add_T_%1.0e_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(time_steps,weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
 log_dir
 
 # create a training and testing dataset

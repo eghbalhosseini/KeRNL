@@ -54,7 +54,7 @@ batch_size = 25
 training_size=batch_size*training_steps
 epochs=100
 test_size=10000
-display_step = 10
+display_step = 200
 grad_clip=100
 # Network Parameters
 num_input = 2 # adding problem data input (first input are the random digits , second input is the mask)
@@ -67,7 +67,7 @@ perturbation_std=1e-10
 
 #
 # save dir
-log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/kernl_rnn_addition_dataset/tanh_add_T_%1.0e_tanh_add_eta_W_%1.0e_eta_T_%1.0e_Noise_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(time_steps,weight_learning_rate,tensor_learning_rate,perturbation_std,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/kernl_rnn_addition_dataset/kernl_rnn_tanh_add_T_%1.0e_tanh_add_eta_W_%1.0e_eta_T_%1.0e_Noise_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(time_steps,weight_learning_rate,tensor_learning_rate,perturbation_std,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
 log_dir
 
 # create a training and testing dataset

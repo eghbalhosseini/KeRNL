@@ -8,7 +8,6 @@ from datetime import datetime
 from pathlib import Path
 import os
 import re
-
 # tensorflow and its dependencies
 import tensorflow as tf
 from tensorflow.python.eager import context
@@ -32,17 +31,9 @@ from tensorflow.python.platform import tf_logging as logging
 from tensorflow.python.util import nest
 from tensorflow.contrib.rnn.python.ops.core_rnn_cell import _Linear
 from tensorflow.contrib import slim
-
-## user defined modules
-## user defined modules
 # kernel rnn cell
 import kernl_rnn_cell
 import adding_problem
-
-# uplading mnist data
-
-
-# Training Parameters
 # Training Parameters
 tensor_learning_rate = 1e-5
 weight_learning_rate = 1e-3
@@ -52,22 +43,18 @@ batch_size = 25
 training_size=batch_size*training_steps
 epochs=100
 test_size=10000
-display_step = 10
+display_step = 200
 grad_clip=100
 # Network Parameters
 num_input = 2 # adding problem data input (first input are the random digits , second input is the mask)
 time_steps = 200
 num_hidden = 100 # hidden layer num of features
 num_output = 1 # value of the addition estimation
-#
 # Noise Parameters
 perturbation_std=1e-10
-
-#
 # save dir
-log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/kernl_rnn_addition_dataset/relu_add_T_%1.e_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(time_steps,weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/kernl_rnn_addition_dataset/kernl_rnn_relu_add_T_%1.e_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(time_steps,weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
 log_dir
-
 # create a training and testing dataset
 training_x, training_y = adding_problem.get_batch(batch_size=training_size,time_steps=time_steps)
 testing_x, testing_y = adding_problem.get_batch(batch_size=test_size,time_steps=time_steps)

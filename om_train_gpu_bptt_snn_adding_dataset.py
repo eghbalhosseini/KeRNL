@@ -51,7 +51,7 @@ batch_size = 25
 training_size=batch_size*training_steps
 epochs=50
 test_size=1000
-display_step = 50
+display_step = 200
 grad_clip=100
 buffer_size=600
 # Network Parameters
@@ -140,19 +140,13 @@ with graph.as_default():
                 ##################
 
     with tf.name_scope("bptt_weight_summaries") as scope:
-
-        #
         tf.summary.histogram('bptt_kernel_grad',bptt_grad_cost_trainables[0]+1e-10)
         tf.summary.histogram('bptt_kernel', trainables[0]+1e-10)
-                    # bptt output weight
         tf.summary.histogram('bptt_output_weight_grad',bptt_grad_cost_trainables[1]+1e-10)
         tf.summary.histogram('bptt_output_weights', trainables[1]+1e-10)
-                    # bptt loss and accuracy
         tf.summary.scalar('bptt_loss_output_prediction',bptt_loss_output_prediction+1e-10)
-
         # bptt senstivity tensor and temporal filter
         bptt_merged_summary_op=tf.summary.merge_all(scope="bptt_weight_summaries")
-
     init = tf.global_variables_initializer()
     saver = tf.train.Saver()
 

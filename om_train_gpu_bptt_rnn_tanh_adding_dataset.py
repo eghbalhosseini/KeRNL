@@ -53,7 +53,7 @@ batch_size = 25
 training_size=batch_size*training_steps
 epochs=50
 test_size=10000
-display_step = 100
+display_step = 200
 grad_clip=100
 # Network Parameters
 num_input = 2 # adding problem data input (first input are the random digits , second input is the mask)
@@ -63,7 +63,7 @@ num_output = 1 # value of the addition estimation
 #
 
 # save dir
-log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/bptt_rnn_addition_dataset/rnn_tanh_add_T_%1.0e_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(time_steps,weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/bptt_rnn_addition_dataset/bptt_rnn_tanh_add_T_%1.0e_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(time_steps,weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
 log_dir
 # create a training and testing dataset
 training_x, training_y = adding_problem.get_batch(batch_size=training_size,time_steps=time_steps)
@@ -92,7 +92,7 @@ def bptt_rnn(x,rnn_weights,rnn_bias):
 tf.reset_default_graph()
 graph=tf.Graph()
 with graph.as_default():
-    with tf.variable_scope('bptt_output',initializer=tf.initializers.random_normal()) as scope:
+    with tf.variable_scope('bptt_output',initializer=tf.contrib.layers.xavier_initializer()) as scope:
         rnn_weights = tf.get_variable(shape=[num_hidden, num_output],name='output_weight')
         rnn_biases = tf.get_variable(shape=[num_output],name='output_addition')
     # define weights and inputs to the network
