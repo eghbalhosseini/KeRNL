@@ -44,21 +44,19 @@ import adding_problem
 
 
 # Training Parameters
-# Training Parameters
 weight_learning_rate = 1e-3
-training_steps = 4000
-batch_size = 25
+training_steps = 400
+batch_size = 250
 training_size=batch_size*training_steps
-epochs=5
+epochs=10
 test_size=1000
 display_step = 200
 grad_clip=100
-buffer_size=600
 # Network Parameters
 num_input = 2 # adding problem data input (first input are the random digits , second input is the mask)
 time_steps = 50
 num_units_input_layer=50
-num_hidden = 100 # hidden layer num of features
+num_hidden = 200 # hidden layer num of features
 num_output = 1 # value of the addition estimation
 #
 # save dir
@@ -86,7 +84,7 @@ def bptt_snn_all_states(x,context):
         hidden_layer_cell=spiking_cell.conductance_spike_cell(num_units=num_hidden,output_is_tuple=True,tau_refract=2.0,tau_m=20.0,kernel_initializer=tf.contrib.layers.xavier_initializer())
         output_hidden, states_hidden = tf.nn.dynamic_rnn(hidden_layer_cell, dtype=tf.float32, inputs=tf.concat([output_l1,context],-1))
     with tf.variable_scope('output_layer') as scope :
-        output_layer_cell=spiking_cell.output_spike_cell(num_units=num_output)
+        output_layer_cell=spiking_cell.output_spike_cell(num_units=num_output,kernel_initializer=tf.contrib.layers.xavier_initializer())
         output_voltage, voltage_states=tf.nn.dynamic_rnn(output_layer_cell,dtype=tf.float32,inputs=output_hidden.spike)
     return output_voltage,output_hidden
 
