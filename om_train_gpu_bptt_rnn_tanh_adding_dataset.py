@@ -82,7 +82,7 @@ def _hinton_identity_initializer(shape,dtype=None,partition_info=None,verify_sha
 
 def bptt_rnn(x,rnn_weights,rnn_bias):
     # Define a KeRNL cell, the initialization is done inside the cell with default initializers
-    with tf.variable_scope("bptt",initializer=_hinton_identity_initializer) as scope:
+    with tf.variable_scope("bptt",initializer=tf.contrib.layers.xavier_initializer()) as scope:
         rnn_cell = tf.contrib.rnn.BasicRNNCell(num_hidden,name='irnn',activation=tf.nn.tanh)
         rnn_outputs, rnn_states = tf.nn.dynamic_rnn(rnn_cell, x, dtype=tf.float32)
         rnn_output=tf.matmul(rnn_outputs[:,-1,:], rnn_weights) +rnn_biases
@@ -143,7 +143,7 @@ with graph.as_default():
         tf.summary.scalar('cross_validation_summary',bptt_loss_cross_validiation+1e-10)
         bptt_evaluate_summary_op=tf.summary.merge_all(scope="cross_validation_summary")
 
-                ##################
+                ##################_hinton_identity_initializer
                 # SUMMARIES ######
                 ##################
 
