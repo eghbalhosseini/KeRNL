@@ -1,8 +1,8 @@
 #!/bin/sh
-#SBATCH --job-name=bptt_tanh
-#SBATCH --mem=40000
+#SBATCH --job-name=bp_cudTh
+#SBATCH --mem=80000
 #SBATCH --gres=gpu:titan-x:2
-#SBATCH --time=1-00:00:00
+#SBATCH --time=0-15:00:00
 #SBATCH --exclude node017,node018
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=ehoseini@mit.edu
