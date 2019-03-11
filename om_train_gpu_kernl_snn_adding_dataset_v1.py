@@ -43,14 +43,13 @@ import adding_problem
 
 
 # Training Parameters
-# Training Parameters
 tensor_learning_rate = 1e-3
 weight_learning_rate = 1e-3
 training_steps = 4000
 buffer_size=700
 batch_size = 50
 training_size=batch_size*training_steps
-epochs=10
+epochs=2
 test_size=10000
 display_step = 200
 grad_clip=100
@@ -71,7 +70,7 @@ training_x, training_y = adding_problem.get_batch(batch_size=training_size,time_
 testing_x, testing_y = adding_problem.get_batch(batch_size=test_size,time_steps=time_steps)
 
 # save dir
-log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/kernl_snn_addition_dataset/kernl_snn_add_T_%1.0e_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(time_steps,weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/kernl_snn_addition_dataset_v1/kernl_snn_add_T_%1.0e_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(time_steps,weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
 log_dir
 
 
@@ -87,7 +86,6 @@ def _hinton_identity_initializer(shape,dtype=None,partition_info=None,verify_sha
            initializer=tf.contrib.layers.xavier_initializer())
     #W_in=tf.random_normal(new_shape,mean=0,stddev=0.001)
     return tf.concat([W_in,W_rec],axis=0)
-
 
 ## define KeRNL unit
 def kernl_snn_all_states(x,context):
@@ -108,8 +106,10 @@ def kernl_snn_all_states(x,context):
     with tf.variable_scope('output_layer') as scope :
         output_layer_cell=kernl_spiking_cell.output_spike_cell(num_units=num_output,kernel_initializer=tf.contrib.layers.xavier_initializer())
         output_voltage, voltage_states=tf.nn.dynamic_rnn(output_layer_cell,dtype=tf.float32,inputs=output_hidden.spike)
-    return output_voltage,output_hidden
 
+    return output_voltage[:,-1,:],output_hidden.v_mem,output_hidden.v_mem_hat,output_hidden.Theta, states_hidden
+
+##################################################
 ##################################################
 tf.reset_default_graph()
 graph=tf.Graph()
@@ -125,9 +125,10 @@ with graph.as_default():
     iter = dataset.make_initializable_iterator()
     inputs,labels =iter.get_next()
     #
-    kernl_output,kernl_hidden_states=kernl_snn_all_states(tf.expand_dims(inputs[:,:,0],axis=-1),tf.expand_dims(inputs[:,:,1],axis=-1))
+    kernl_output,kernl_hidden_state,kernl_hidden_state_hat,kernl_intg_perturb,kernl_all_states=kernl_snn_all_states(tf.expand_dims(inputs[:,:,0],axis=-1),tf.expand_dims(inputs[:,:,1],axis=-1))
     trainables=tf.trainable_variables()
     variable_names=[v.name for v in tf.trainable_variables()]
+
     #
     find_joing_index = lambda x, name_1,name_2 : [a and b for a,b in zip([np.unicode_.find(k.name, name_1)>-1 for k in x] ,[np.unicode_.find(k.name, name_2)>-1 for k in x])].index(True)
     # find trainable parameters for kernl
@@ -147,31 +148,38 @@ with graph.as_default():
     ##################
     # kernl train ####
     ##################
-    with tf.name_scope('kernl_train_tensors') as scope:
-        state_diff_int=tf.subtract(kernl_hidden_states.v_mem_hat[:,:,:], kernl_hidden_states.v_mem[:,:,:])
-        estimate_state_diff_int=tf.einsum('unv,vk->unk',kernl_hidden_states.Theta,trainables[kernl_sensitivity_tensor_index])
-        kernl_loss_state_prediction=tf.losses.mean_squared_error(state_diff_int,estimate_state_diff_int)
-        kernl_tensor_optimizer = tf.train.RMSPropOptimizer(learning_rate=tensor_learning_rate)
-        kernl_tensor_grads=tf.gradients(ys=kernl_loss_state_prediction,xs=kernl_tensor_trainables)
-        kernl_tensor_grad_and_vars=list(zip(kernl_tensor_grads,kernl_tensor_trainables))
-        kernl_cropped_tensor_grads_and_vars=[(tf.clip_by_norm(grad, grad_clip),var) for grad,var in kernl_tensor_grad_and_vars]
-        kernl_tensor_train_op=kernl_tensor_optimizer.apply_gradients(kernl_cropped_tensor_grads_and_vars)
-
-    with tf.name_scope('kernl_train_weights') as scope:
+    with tf.name_scope('kernl_train') as scope:
         kernl_weight_optimizer = tf.train.RMSPropOptimizer(learning_rate=weight_learning_rate)
-        kernl_loss_output_prediction=tf.losses.mean_squared_error(labels,kernl_output[:,-1,:])
-        kernl_grad_cost_to_output=tf.scalar_mul(2,tf.subtract(labels,kernl_output[:,-1,:]))
-        kernl_error_in_hidden_state=tf.matmul(kernl_grad_cost_to_output,tf.transpose(trainables[kernl_output_weight_index]))
-        kernl_delta_weight=tf.matmul(kernl_error_in_hidden_state,trainables[kernl_sensitivity_tensor_index])
-        kernl_weight_update_test=tf.einsum("un,unv->unv",kernl_delta_weight,kernl_hidden_states.eligibility_trace[:,-1,:,:])
-        kernl_weight_update=tf.transpose(tf.reduce_mean(kernl_weight_update_test,axis=0))
-        kernl_grad_cost_to_output_layer=tf.gradients(ys=kernl_loss_output_prediction,xs=trainables[kernl_output_weight_index])
-        kernl_weight_grads_and_vars=list(zip([kernl_weight_update,kernl_grad_cost_to_output_layer[0]],kernl_weight_trainables))
-        kernl_cropped_weight_grads_and_vars=[(tf.clip_by_norm(grad, grad_clip),var) if  np.unicode_.find(var.name,'output')==-1 else (grad,var) for grad,var in kernl_weight_grads_and_vars]
-        kernl_weight_train_op = kernl_weight_optimizer.apply_gradients(kernl_cropped_weight_grads_and_vars)
+        kernl_loss_output_prediction=tf.losses.mean_squared_error(labels,kernl_output)
+
+        state_diff_int=tf.subtract(kernl_hidden_state_hat, kernl_hidden_state)
+        estimate_state_diff_int=tf.einsum('unv,vk->unk',kernl_intg_perturb,trainables[kernl_sensitivity_tensor_index])
+        kernl_loss_state_prediction=tf.losses.mean_squared_error(state_diff_int,estimate_state_diff_int)
+
+        with tf.name_scope('kernl_train_tensors') as scope:
+
+            kernl_tensor_optimizer = tf.train.RMSPropOptimizer(learning_rate=tensor_learning_rate)
+            kernl_tensor_grads=tf.gradients(ys=kernl_loss_state_prediction,xs=kernl_tensor_trainables)
+            kernl_tensor_grad_and_vars=list(zip(kernl_tensor_grads,kernl_tensor_trainables))
+            kernl_cropped_tensor_grads_and_vars=[(tf.clip_by_norm(grad, grad_clip),var) for grad,var in kernl_tensor_grad_and_vars]
+            kernl_tensor_train_op=kernl_tensor_optimizer.apply_gradients(kernl_cropped_tensor_grads_and_vars)
+
+        with tf.name_scope('kernl_train_weights') as scope:
+
+            #kernl_grad_cost_to_output=tf.scalar_mul(2,tf.subtract(labels,kernl_output))
+            kernl_grad_cost_to_output=tf.gradients(kernl_loss_output_prediction,kernl_output)
+            kernl_error_in_hidden_state=tf.matmul(kernl_grad_cost_to_output[-1],tf.transpose(trainables[kernl_output_weight_index]))
+            kernl_delta_weight=tf.matmul(kernl_error_in_hidden_state,trainables[kernl_sensitivity_tensor_index])
+            kernl_weight_update=tf.transpose(tf.reduce_mean(tf.einsum("un,unv->unv",kernl_delta_weight,kernl_all_states.eligibility_trace),axis=0))
+            #kernl_weight_update_test=tf.einsum("un,unv->unv",kernl_delta_weight,kernl_hidden_states.eligibility_trace[:,-1,:,:])
+            #kernl_weight_update=tf.transpose(tf.reduce_mean(kernl_weight_update_test,axis=0))
+            kernl_grad_cost_to_output_layer=tf.gradients(ys=kernl_loss_output_prediction,xs=trainables[kernl_output_weight_index])
+            kernl_weight_grads_and_vars=list(zip([kernl_weight_update,kernl_grad_cost_to_output_layer[0]],kernl_weight_trainables))
+            kernl_cropped_weight_grads_and_vars=[(tf.clip_by_norm(grad, grad_clip),var) if  np.unicode_.find(var.name,'output')==-1 else (grad,var) for grad,var in kernl_weight_grads_and_vars]
+            kernl_weight_train_op = kernl_weight_optimizer.apply_gradients(kernl_cropped_weight_grads_and_vars)
 
     with tf.name_scope("kernl_evaluate") as scope:
-        kernl_loss_cross_validiation=tf.losses.mean_squared_error(labels,kernl_output[:,-1,:])
+        kernl_loss_cross_validiation=tf.losses.mean_squared_error(labels,kernl_output)
 
     with tf.name_scope('cross_validation_summary') as scope:
         tf.summary.scalar('cross_validation_summary',kernl_loss_cross_validiation+1e-10)
@@ -197,7 +205,8 @@ with graph.as_default():
 
     init = tf.global_variables_initializer()
     saver = tf.train.Saver()
-    ###############################################
+
+###############################################
 
 Path(log_dir).mkdir(exist_ok=True, parents=True)
 filelist = [ f for f in os.listdir(log_dir) if f.endswith(".local") ]
