@@ -48,16 +48,16 @@ tensor_learning_rate = 1e-6
 weight_learning_rate = 1e-3
 training_steps = 4000
 buffer_size=700
-batch_size = 25
+batch_size = 50
 training_size=batch_size*training_steps
-epochs=100
+epochs=10
 test_size=10000
 display_step = 200
 grad_clip=100
 # Network Parameters
 # adding problem data input (first input are the random digits , second input is the mask)
 time_steps = 100
-num_hidden = 100 # hidden layer num of features
+num_hidden = 200 # hidden layer num of features
 num_output = 1 # value of the addition estimation
 #
 num_input=2
@@ -65,16 +65,14 @@ num_units_input_layer=50
 num_context_unit=1
 # Noise Parameters
 perturbation_std=1e-10
-
-#
 # save dir
-log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/kernl_snn_addition_dataset/kernl_snn_add_T_%1.0e_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(time_steps,weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
-log_dir
-
 # create a training and testing dataset
 training_x, training_y = adding_problem.get_batch(batch_size=training_size,time_steps=time_steps)
 testing_x, testing_y = adding_problem.get_batch(batch_size=test_size,time_steps=time_steps)
 
+# save dir
+log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/kernl_snn_addition_dataset/kernl_snn_add_T_%1.0e_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_run_%s" %(time_steps,weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir
 
 def _hinton_identity_initializer(shape,dtype=None,partition_info=None,verify_shape=None, max_val=1):
     if dtype is None:
@@ -86,6 +84,19 @@ def _hinton_identity_initializer(shape,dtype=None,partition_info=None,verify_sha
            initializer=tf.contrib.layers.xavier_initializer())
     #W_in=tf.random_normal(new_shape,mean=0,stddev=0.001)
     return tf.concat([W_in,W_rec],axis=0)
+
+## define KeRNL unit
+def _hinton_identity_initializer(shape,dtype=None,partition_info=None,verify_shape=None, max_val=1):
+    if dtype is None:
+        dtype=tf.float32
+    #extract second dimension
+    W_rec=tf.eye(shape[-1],dtype=dtype)
+    new_shape=[shape[0]-shape[-1],shape[-1]]
+    W_in = tf.get_variable("W_in", shape=new_shape,
+           initializer=tf.contrib.layers.xavier_initializer())
+    #W_in=tf.random_normal(new_shape,mean=0,stddev=0.001)
+    return tf.concat([W_in,W_rec],axis=0)
+
 
 ## define KeRNL unit
 def kernl_snn_all_states(x,context):
@@ -104,7 +115,7 @@ def kernl_snn_all_states(x,context):
                                                                  kernel_initializer=tf.contrib.layers.xavier_initializer())
         output_hidden, states_hidden = tf.nn.dynamic_rnn(hidden_layer_cell, dtype=tf.float32, inputs=tf.concat([output_l1,context],-1))
     with tf.variable_scope('output_layer') as scope :
-        output_layer_cell=kernl_spiking_cell.output_spike_cell(num_units=num_output)
+        output_layer_cell=kernl_spiking_cell.output_spike_cell(num_units=num_output,kernel_initializer=tf.contrib.layers.xavier_initializer())
         output_voltage, voltage_states=tf.nn.dynamic_rnn(output_layer_cell,dtype=tf.float32,inputs=output_hidden.spike)
     return output_voltage,output_hidden
 
