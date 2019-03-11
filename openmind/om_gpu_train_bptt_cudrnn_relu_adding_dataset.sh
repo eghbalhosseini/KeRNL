@@ -7,6 +7,7 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=ehoseini@mit.edu
 #SBATCH --array=1
+#SBATCH --cpus-per-task=8
 #SBATCH --output=om_gpu_train_results_bptt_cudrnn_relu_adding_dataset.out
 
 module add openmind/singularity
