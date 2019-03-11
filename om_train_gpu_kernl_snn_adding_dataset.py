@@ -44,7 +44,7 @@ import adding_problem
 
 # Training Parameters
 # Training Parameters
-tensor_learning_rate = 1e-6
+tensor_learning_rate = 1e-3
 weight_learning_rate = 1e-3
 training_steps = 4000
 buffer_size=700
@@ -111,7 +111,7 @@ def kernl_snn_all_states(x,context):
                                                                  tau_refract=2.0,
                                                                  tau_m=20,
                                                                  noise_param=perturbation_std,
-                                                                 sensitivity_initializer=tf.contrib.layers.xavier_initializer(),
+                                                                 sensitivity_initializer=tf.initializers.identity(),
                                                                  kernel_initializer=tf.contrib.layers.xavier_initializer())
         output_hidden, states_hidden = tf.nn.dynamic_rnn(hidden_layer_cell, dtype=tf.float32, inputs=tf.concat([output_l1,context],-1))
     with tf.variable_scope('output_layer') as scope :
