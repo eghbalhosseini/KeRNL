@@ -7,7 +7,7 @@
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=ehoseini@mit.edu
 #SBATCH --array=1
-#SBATCH --output=om_gpu_train_results_kernl_snn_adding_dataset.out
+#SBATCH --output=om_gpu_train_results_kernl_snn_adding_dataset_v1_%j.out
 
 module add openmind/singularity
 export SINGULARITY_CACHEDIR=/om/user/`whoami`/st/
