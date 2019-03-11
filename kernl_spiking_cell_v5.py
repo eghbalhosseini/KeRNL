@@ -393,8 +393,7 @@ class output_spike_cell(tf.contrib.rnn.RNNCell):
 
     if self._linear is None:
         self._linear = _Linear([inputs],self._num_units,False,
-                                    kernel_initializer=self._kernel_initializer,
-                                    bias_initializer=self._bias_initializer)
+                                    kernel_initializer=self._kernel_initializer)
 
     # calculate new Isyn = W*S
     I_syn_new=self._linear([inputs])

@@ -302,10 +302,10 @@ class output_spike_cell(tf.contrib.rnn.RNNCell):
     v_mem = state
 
     if self._linear is None:
-        self._linear = _Linear([inputs],self._num_units,True,kernel_initializer=self._kernel_initializer,bias_initializer=self._bias_initializer)
+        self._linear = _Linear([inputs],self._num_units,False,kernel_initializer=self._kernel_initializer)
 
     # calculate new Isyn = W*S
-    
+
     I_syn_new=self._linear([inputs])
         # calculate factor for updating
     alpha=tf.exp(tf.negative(tf.divide(self.dt,self.tau_m)))
