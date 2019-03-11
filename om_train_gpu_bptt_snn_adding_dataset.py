@@ -52,6 +52,7 @@ epochs=10
 test_size=1000
 display_step = 200
 grad_clip=100
+buffer_size=500
 # Network Parameters
 num_input = 2 # adding problem data input (first input are the random digits , second input is the mask)
 time_steps = 50
