@@ -45,8 +45,8 @@ import adding_problem
 
 # Training Parameters
 weight_learning_rate = 1e-3
-training_steps = 400
-batch_size = 250
+training_steps = 4000
+batch_size = 100
 training_size=batch_size*training_steps
 epochs=10
 test_size=1000
