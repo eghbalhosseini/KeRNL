@@ -48,10 +48,10 @@ import adding_problem
 # Training Parameters
 weight_learning_rate = 1e-3
 training_steps = 4000
-buffer_size=500
+buffer_size=600
 batch_size = 25
 training_size=batch_size*training_steps
-epochs=50
+epochs=100
 test_size=10000
 display_step = 200
 grad_clip=100
