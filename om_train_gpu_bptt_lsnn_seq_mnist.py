@@ -41,9 +41,9 @@ training_steps = 240
 batch_size = 250
 display_step = 50
 test_len=100
-epochs=2
+epochs=150
 grad_clip=200
-buffer_size=200
+buffer_size=500
 # Network Parameters
 num_input = 1 # MNIST data input (img shape: 28*28)
 num_context_input=1
