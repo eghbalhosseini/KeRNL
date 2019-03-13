@@ -36,13 +36,13 @@ import long_short_term_spike_cell_v1 as spiking_cell
 
 # Training Parameters
 weight_learning_rate = 1e-2
-training_steps = 240
+training_steps = 20
 batch_size = 250
 display_step = 50
-test_len=1000
+test_len=100
 epochs=2
 grad_clip=200
-buffer_size=500
+buffer_size=200
 # Network Parameters
 num_input = 1 # MNIST data input (img shape: 28*28)
 num_context_input=1
@@ -70,10 +70,7 @@ x_train=np.concatenate([x_train_temp,np.zeros((x_train_temp.shape[0],timesteps-M
 x_test_temp=x_test.reshape((-1,MNIST_timesteps,num_input))
 x_test=np.concatenate([x_test_temp,np.zeros((x_test_temp.shape[0],timesteps-MNIST_timesteps,num_input))],axis=1)
 
-#
-# save dir
-log_dir = os.environ['HOME']+"/MyData/KeRNL/logs/bptt_lsnn_seq_mnist/bptt_snn_mnist_eta_W_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_epoch_%1.0e_run_%s" %(weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps,epochs, datetime.now().strftime("%Y%m%d_%H%M"))
-log_dir
+
 
 def _lsnn_weight_initializer(shape,dtype=None,partition_info=None,verify_shape=None, gain=0.5):
     if dtype is None:
@@ -96,6 +93,10 @@ def _hinton_identity_initializer(shape,dtype=None,partition_info=None,verify_sha
            initializer=tf.contrib.layers.xavier_initializer())
     #W_in=tf.random_normal(new_shape,mean=0,stddev=0.001)
     return tf.concat([W_in,W_rec],axis=0)
+# save dir
+log_dir = os.environ['HOME']+"/MyData/KeRNL/logs/bptt_lsnn_seq_mnist/bptt_snn_mnist_eta_W_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_epoch_%1.0e_run_%s" %(weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps,epochs, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir
+
 
 ## define KeRNL unit
 def bptt_snn_all_states(x,context):
@@ -113,7 +114,7 @@ def bptt_snn_all_states(x,context):
                                                                   num_inputs=num_unit_input_layer+num_context_unit,
                                                                   state_is_tuple=True,
                                                                   output_is_tuple=False,
-                                                                  kernel_initializer=_lsnn_weight_initializer)
+                                                                  kernel_initializer=tf.initializers.random_normal)
 
         output_hidden, states_hidden = tf.nn.dynamic_rnn(hidden_layer_cell, dtype=tf.float32, inputs=tf.concat([output_l1,output_context],-1))
     with tf.variable_scope('output_layer') as scope :
@@ -124,16 +125,17 @@ def bptt_snn_all_states(x,context):
 tf.reset_default_graph()
 graph=tf.Graph()
 with graph.as_default():
-    BATCH_SIZE=tf.placeholder(tf.int64)
+    BATCH_SIZE=tf.placeholder(tf.int64,name='batch_size')
     X = tf.placeholder("float", [None, timesteps, num_input],name='mnist_input')
     Y = tf.placeholder("int32", [None],name='mnist_labels')
     Context=tf.placeholder('float',[None,timesteps,num_context_input],name='context_inputs')
     # define a dataset
-    dataset=tf.data.Dataset.from_tensor_slices((X,Y,Context)).batch(BATCH_SIZE).repeat()
-    dataset = dataset.shuffle(buffer_size=buffer_size)
-    iter = dataset.make_initializable_iterator()
-    inputs,labels,contexts =iter.get_next()
-    #labels=tf.one_hot(labels_temp,depth=num_classes)
+    with tf.name_scope('prepare_dataset') as scope:
+        dataset=tf.data.Dataset.from_tensor_slices((X,Y,Context)).batch(BATCH_SIZE).repeat()
+        dataset = dataset.shuffle(buffer_size=buffer_size)
+        iter = dataset.make_initializable_iterator()
+        inputs,labels,contexts =iter.get_next()
+        labels_temp=tf.one_hot(labels,depth=num_classes)
     # define a function for extraction of variable names
     bptt_snn_output,_=bptt_snn_all_states(inputs,contexts)
     trainables=tf.trainable_variables()
@@ -152,11 +154,11 @@ with graph.as_default():
         bptt_snn_logit=tf.reduce_mean(bptt_snn_output[:,-context_timesteps:,:],axis=1)
         bptt_snn_loss_output_prediction=tf.losses.sparse_softmax_cross_entropy(labels=labels,logits=bptt_snn_logit)
         bptt_snn_prediction = tf.nn.softmax(bptt_snn_logit)
-        bptt_snn_correct_pred = tf.equal(tf.argmax(bptt_snn_prediction, 1), tf.argmax(labels, 1))
+        bptt_snn_correct_pred = tf.equal(tf.argmax(bptt_snn_prediction, 1), tf.argmax(labels_temp, 1))
         bptt_snn_accuracy = tf.reduce_mean(tf.cast(bptt_snn_correct_pred, tf.float32))
 
     with tf.name_scope('bptt_snn_train') as scope:
-        bptt_snn_optimizer = tf.train.AdamOptimizer(learning_rate=weight_learning_rate,)
+        bptt_snn_optimizer = tf.train.AdamOptimizer(learning_rate=weight_learning_rate)
         bptt_snn_weight_grads=bptt_snn_optimizer.compute_gradients(bptt_snn_loss_output_prediction,var_list=bptt_snn_weight_trainables)
         bptt_snn_weight_train_op=bptt_snn_optimizer.apply_gradients(bptt_snn_weight_grads)
 
@@ -195,15 +197,15 @@ with tf.Session(graph=graph) as sess:
     for epoch in range(epochs):
         sess.run(iter.initializer,feed_dict={X: x_train, Y: y_train ,Context: train_context, BATCH_SIZE: batch_size})
         for step in range(training_steps):
-           bptt_snn_train, bptt_snn_loss,bptt_merged_summary=sess.run([bptt_snn_weight_train_op,bptt_snn_loss_output_prediction,bptt_snn_tensor_merged_summary_op])
-           tb_writer.add_summary(bptt_merged_summary, global_step=step)
-           if step % display_step==0 or step==1 :
-                print('Epoch: {}, Batch: {},bptt train Loss: {:.3f}'.format(epoch+1,step + 1, bptt_snn_loss))
+            bptt_snn_train, bptt_snn_loss,bptt_merged_summary=sess.run([bptt_snn_weight_train_op,bptt_snn_loss_output_prediction,bptt_snn_tensor_merged_summary_op])
+            tb_writer.add_summary(bptt_merged_summary, global_step=epoch*training_steps+step+1)
+            if step % display_step==0 or step==1 :
+                 print('Epoch: {}, Batch: {},bptt train Loss: {:.3f}'.format(epoch+1,step + 1, bptt_snn_loss))
         # run test at the end of each epoch
-        sess.run(iter.initializer, feed_dict={ X: x_test, Y: y_test, Context: test_context, BATCH_SIZE: x_test.shape[0]})
+        sess.run(iter.initializer, feed_dict={ X: x_test, Y: y_test, Context: test_context, BATCH_SIZE: test_len})
         bptt_test_loss, bptt_evaluate_summary=sess.run([bptt_snn_loss_output_prediction,bptt_snn_evaluate_merged_summary_op])
-        tb_writer.add_summary(bptt_evaluate_summary, global_step=step)
+        tb_writer.add_summary(bptt_evaluate_summary, global_step=epoch*training_steps+training_steps+1)
         print('Epoch: {}, cross validation loss :{:.3f}'.format(epoch+1,bptt_test_loss))
     print("Optimization Finished!")
-    #save_path = saver.save(sess, log_dir+"/model.ckpt", global_step=step,write_meta_graph=True)
-    #print("Model saved in path: %s" % save_path)
+    save_path = saver.save(sess, log_dir+"/model.ckpt", global_step=step,write_meta_graph=True)
+    print("Model saved in path: %s" % save_path)
