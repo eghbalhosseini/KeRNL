@@ -275,7 +275,7 @@ class long_short_term_spike_cell(tf.contrib.rnn.RNNCell):
     spike_new=self._calculate_crossing(v_mem_norm)
     v_reseting=tf.multiply(v_mem_update,spike_new)
     v_mem_new=tf.subtract(v_mem_update,v_reseting)
-    b_threshold_new = tf.add(tf.scalar_mul(rho,b_threshold), tf.scalar_mul(1-rho,spike))
+    b_threshold_new = tf.add(tf.scalar_mul(rho,b_threshold), tf.scalar_mul(1-rho,spike_new))
     t_update=tf.clip_by_value(tf.subtract(t_reset,self.dt),0.0,100)
     t_reset_new=tf.add(tf.multiply(spike_new,self.tau_refract),t_update)
     # return variables
