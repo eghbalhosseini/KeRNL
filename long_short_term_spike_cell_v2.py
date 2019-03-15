@@ -92,7 +92,7 @@ def _get_2D_input_spike(S,spike,delay_tensor,depth):
     outputs a tensor with size batch x output_size, where outputsize is twice the size of thresholds_size
     """
     # roll S and get new input,
-    S_update=tf.roll(S,shift=-1,axis=1)
+    S_update=tf.roll(S,shift=-1,axis=1,name='tensor_roll')
     new_input=S_update[:,0,:]
     synaptic_shape=tf.shape(S)
     # add new spikes to S
