@@ -73,7 +73,7 @@ x_test=np.concatenate([x_test_temp,np.zeros((x_test_temp.shape[0],timesteps-MNIS
 
 #
 # save dir
-log_dir = "/om/user/ehoseini/MyData/logs/bptt_lsnn_v3_seq_mnist/bptt_lsnn_v3_mnist_eta_W_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_epoch_%1.0e_run_%s" %(weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps,epochs, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir = "/om/user/ehoseini/MyData/logs/bptt_lsnn_v4_seq_mnist/bptt_lsnn_v3_mnist_eta_W_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_epoch_%1.0e_run_%s" %(weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps,epochs, datetime.now().strftime("%Y%m%d_%H%M"))
 log_dir
 
 ## define KeRNL unit
