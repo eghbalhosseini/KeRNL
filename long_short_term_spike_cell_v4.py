@@ -140,8 +140,8 @@ _DELAY_TENSOR_NAME="delay_tensor"
 _TENSOR_VARIABLE_NAME='kernel'
 
 
-_LSNNStateTuple = collections.namedtuple("LSNNStateTuple", ("v_mem","spike","S_in","S_rec","I_syn","b_threshold","t_reset"))
-_LSNNOutputTuple = collections.namedtuple("LSNNOutputTuple", ("v_mem","spike","S_in","S_rec","I_syn","b_threshold"))
+_LSNNStateTuple = collections.namedtuple("LSNNStateTuple", ("v_mem","spike","S_in","S_rec","b_threshold","t_reset"))
+_LSNNOutputTuple = collections.namedtuple("LSNNOutputTuple", ("v_mem","spike","S_in","S_rec","b_threshold"))
 
 class LSNNStateTuple(_LSNNStateTuple):
   """Tuple used by LSNN Cells for `state_variables `, and output state.
@@ -153,7 +153,7 @@ class LSNNStateTuple(_LSNNStateTuple):
 
   @property
   def dtype(self):
-    (v_mem,spike,S_in,S_rec,I_syn,b_threshold,t_reset) = self
+    (v_mem,spike,S_in,S_rec,b_threshold,t_reset) = self
     if v_mem.dtype != spike.dtype:
       raise TypeError("Inconsistent internal state: %s vs %s" %
                       (str(v_mem.dtype), str(spike.dtype)))
@@ -167,7 +167,7 @@ class LSNNOutputTuple(_LSNNOutputTuple):
 
   @property
   def dtype(self):
-    (v_mem,spike,S_in,S_rec,I_syn,b_threshold) = self
+    (v_mem,spike,S_in,S_rec,b_threshold) = self
     if v_mem.dtype != spike.dtype:
       raise TypeError("Inconsistent internal state: %s vs %s"
                       (str(v_mem.dtype), str(spike.dtype)))
@@ -362,7 +362,6 @@ class long_short_term_spike_cell(tf.contrib.rnn.RNNCell):
                           np.array([self._num_inputs,self._max_delay]),
                           np.array([self._num_units,self._max_delay]),
                           self._num_units,
-                          self._num_units,
                           self._num_units) if self._state_is_tuple else self._num_units)
   @property
   def output_size(self):
@@ -370,7 +369,6 @@ class long_short_term_spike_cell(tf.contrib.rnn.RNNCell):
                           self._num_units,
                           np.array([self._num_inputs,self._max_delay]),
                           np.array([self._num_units,self._max_delay]),
-                          self._num_units,
                           self._num_units) if self._output_is_tuple else self._num_units)
 
   def call(self, inputs, state):
@@ -391,7 +389,7 @@ class long_short_term_spike_cell(tf.contrib.rnn.RNNCell):
         delay_tensor=tf.get_variable(_DELAY_TENSOR_NAME,shape=[self._num_units,self._num_units+self._num_inputs],dtype=tf.float32,trainable=False)
     logging.warn("%s: delay tensor ", delay_tensor)
     if self._state_is_tuple:
-        v_mem,spike,S_in,S_rec,I_syn_old,b_threshold,t_reset = state
+        v_mem,spike,S_in,S_rec,b_threshold,t_reset = state
     else:
         logging.error("this cell only accept state as tuple ", self)
     # roll s and add the last value the spike which gets integrated
@@ -418,9 +416,9 @@ class long_short_term_spike_cell(tf.contrib.rnn.RNNCell):
     S_rec_new = self._append_input_spike(S_rec,spike_new)
     # return variables
     if self._state_is_tuple:
-        new_state = LSNNStateTuple( v_mem_new,spike_new, S_in_new,S_rec_new,I_syn, b_threshold_new, t_reset_new )
+        new_state = LSNNStateTuple( v_mem_new,spike_new, S_in_new,S_rec_new, b_threshold_new, t_reset_new )
     if self._output_is_tuple:
-        new_output = LSNNOutputTuple( v_mem_new,spike_new, S_in_new,S_rec_new,I_syn, b_threshold_new )
+        new_output = LSNNOutputTuple( v_mem_new,spike_new, S_in_new,S_rec_new, b_threshold_new )
     else:
         new_output = spike_new
     return new_output, new_state

@@ -1,6 +1,6 @@
 #!/bin/sh
 #SBATCH --job-name=bp_lsnn3
-#SBATCH --mem=80000
+#SBATCH --mem=40000
 #SBATCH --gres=gpu:titan-x:2
 #SBATCH --time=0-05:00:00
 #SBATCH --exclude node017,node018
@@ -12,4 +12,4 @@
 
 module add openmind/singularity
 export SINGULARITY_CACHEDIR=/om/user/`whoami`/st/
-singularity exec --nv -B /om:/om /om/user/`whoami`/simg_images/om_image_tensorflow1-12_gpu.simg /usr/bin/python3 ~/MyCodes/KeRNL/om_train_gpu_bptt_lsnn_v3_seq_mnist.py
+singularity exec --nv -B /om:/om /om/user/`whoami`/simg_images/om_image_tensorflow1-12_gpu.simg /usr/bin/python3 ~/MyCodes/KeRNL/om_train_gpu_bptt_lsnn_v4_seq_mnist.py
