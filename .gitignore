@@ -25,7 +25,7 @@
 *.log
 *.sql
 *.sqlite
-
+*_checkpoints.ipynb
 # OS generated files #
 ######################
 .DS_Store

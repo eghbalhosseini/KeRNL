@@ -304,7 +304,6 @@ class long_short_term_spike_cell(tf.contrib.rnn.RNNCell):
                v_theta=1.0,
                v_reset=0.0,
                R_mem=2.0,
-               tau_s=5.0,
                tau_refract=1.0,
                tau_beta=1.0,
                dt=1.0,
@@ -326,7 +325,6 @@ class long_short_term_spike_cell(tf.contrib.rnn.RNNCell):
     self.v_theta=v_theta
     self.v_reset=v_reset
     self.R_mem=R_mem
-    self.tau_s=tau_s
     self.tau_refract=tau_refract
     self.tau_beta=tau_beta
     self.dt=dt

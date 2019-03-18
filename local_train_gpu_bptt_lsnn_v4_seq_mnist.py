@@ -50,9 +50,9 @@ training_steps = 2000
 batch_size = 200
 display_step = 100
 test_len=200
-epochs=50
+epochs=10
 grad_clip=200
-buffer_size=500
+buffer_size=300
 # Network Parameters
 num_input = 1 # MNIST data input (img shape: 28*28)
 num_context_input=1
@@ -80,9 +80,13 @@ x_train=np.concatenate([x_train_temp,np.zeros((x_train_temp.shape[0],timesteps-M
 x_test_temp=x_test.reshape((-1,MNIST_timesteps,num_input))
 x_test=np.concatenate([x_test_temp,np.zeros((x_test_temp.shape[0],timesteps-MNIST_timesteps,num_input))],axis=1)
 
+
+
+
 # save dir
-log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/bptt_lsnn_v4_seq_mnist/bptt_snn_v4_mnist_eta_W_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_epoch_%1.0e_run_%s" %(weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps,epochs, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir = os.environ['HOME']+"/MyData/KeRNL/logs/bptt_lsnn_v4_seq_mnist/bptt_snn_v4_mnist_eta_W_%1.0e_batch_%1.0e_hum_hidd_%1.0e_gc_%1.0e_steps_%1.0e_epoch_%1.0e_run_%s" %(weight_learning_rate,batch_size,num_hidden,grad_clip,training_steps,epochs, datetime.now().strftime("%Y%m%d_%H%M"))
 log_dir
+
 
 ## define KeRNL unit
 def bptt_snn_all_states(x,context):
