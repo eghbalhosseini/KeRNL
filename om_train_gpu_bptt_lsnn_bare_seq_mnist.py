@@ -50,7 +50,7 @@ training_steps = 1000
 batch_size = 200
 display_step = 5
 test_len=100
-epochs=10
+epochs=5
 grad_clip=200
 buffer_size=400
 # Network Parameters
@@ -97,7 +97,7 @@ def bptt_snn_all_states(x,context):
 
         output_hidden, states_hidden = tf.nn.dynamic_rnn(hidden_layer_cell, dtype=tf.float32, inputs=tf.concat([output_l1,output_context],-1))
     with tf.variable_scope('output_layer') as scope :
-        output_layer_cell=spiking_cell.output_spike_cell(num_units=num_classes,tau_m=20.0,kernel_initializer=tf.initializers.random_uniform)
+        output_layer_cell=spiking_cell.output_spike_cell(num_units=num_classes,tau_m=20.0,kernel_initializer=tf.initializers.random_normal)
         output_voltage, voltage_states=tf.nn.dynamic_rnn(output_layer_cell,dtype=tf.float32,inputs=output_hidden)
     return output_voltage,output_hidden
 
