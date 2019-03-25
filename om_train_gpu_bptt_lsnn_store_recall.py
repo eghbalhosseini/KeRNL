@@ -17,7 +17,7 @@ import long_short_term_spike_cell_bare as spiking_cell
 
 ##
 learn_rate=1e-1
-training_steps=400
+training_steps=200
 batch_size=128
 display_step=2
 num_inputs=1

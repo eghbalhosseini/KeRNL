@@ -1,6 +1,6 @@
 #!/bin/sh
 #SBATCH --job-name=lssn_st
-#SBATCH --mem=40000
+#SBATCH --mem=80000
 #SBATCH --gres=gpu:titan-x:2
 #SBATCH --time=1-00:00:00
 #SBATCH --exclude node017,node018
