@@ -154,6 +154,9 @@ with graph.as_default():
 
     with tf.name_scope("snn_summaries") as scope:
         tf.summary.scalar('output_loss',output_loss+1e-10)
+        tf.summary.histogram('kernel', trainables[0]+1e-10)
+        tf.summary.histogram('output_kernel', trainables[1]+1e-10)
+        tf.summary.histogram('output_biase', trainables[2]+1e-10)
         merged_summary_op=tf.summary.merge_all(scope="snn_summaries")
     #with tf.name_scope('bptt_snn_evaluate') as scope:
     #    tf.summary.scalar('bptt_snn_accuracy',bptt_snn_accuracy+1e-10)
