@@ -17,9 +17,9 @@ import long_short_term_spike_cell_bare as spiking_cell
 
 ##
 learn_rate=1e-1
-training_steps=200
-batch_size=64
-display_step=2
+training_steps=400
+batch_size=128
+display_step=100
 num_inputs=1
 num_input_units=50
 num_hidden_units=80.0
@@ -64,44 +64,14 @@ recall_vec=np.eye(n_values)[recall].reshape(num_of_trials,num_time_steps,1)
 recall_tensor=np.reshape(np.multiply(recall_vec,template),[num_of_trials,-1,1])
 goal= np.multiply(recall_tensor,np.expand_dims(np.sum(np.multiply(value_1_tensor,store_tensor),axis=1)-
                                                np.sum(np.multiply(value_0_tensor,store_tensor),axis=1),axis=1)/200)
+
 value_0_tensor=np.multiply(value_0_tensor,1-recall_tensor)
 value_1_tensor=np.multiply(value_1_tensor,1-recall_tensor)
+
 start_index=np.argmax(np.abs(goal))
-tf.reset_default_graph()
 
-tf_value_1_signal=tf.placeholder("float32",[None, num_time_steps*200, num_inputs])
-tf_value_0_signal=tf.placeholder("float32",[None, num_time_steps*200, num_inputs])
-tf_store_signal=tf.placeholder("float32",[None, num_time_steps*200, num_inputs])
-tf_recall_signal=tf.placeholder("float32",[None, num_time_steps*200, num_inputs])
+####
 
-value_1_cell = poisson_spike_cell.poisson_spike_cell(num_units=num_input_units)
-value_0_cell = poisson_spike_cell.poisson_spike_cell(num_units=num_input_units)
-store_cell = poisson_spike_cell.poisson_spike_cell(num_units=num_input_units)
-recall_cell = poisson_spike_cell.poisson_spike_cell(num_units=num_input_units)
-
-outputs_v_1, _ = tf.nn.dynamic_rnn(cell=value_1_cell, dtype=tf.float32, inputs=tf_value_1_signal)
-outputs_v_0, _ = tf.nn.dynamic_rnn(cell=value_0_cell, dtype=tf.float32, inputs=tf_value_0_signal)
-outputs_store, _ = tf.nn.dynamic_rnn(cell=store_cell, dtype=tf.float32, inputs=tf_store_signal)
-outputs_recall, _ = tf.nn.dynamic_rnn(cell=recall_cell, dtype=tf.float32, inputs=tf_recall_signal)
-
-cell_outputs=[]
-with tf.Session() as sess:
-    sess.run(tf.global_variables_initializer())
-    output_v_1 , output_v_0, output_store, output_recall = sess.run([outputs_v_1,outputs_v_0, outputs_store,outputs_recall],
-                                                    feed_dict={tf_value_1_signal:rate*value_1_tensor,
-                                                              tf_value_0_signal:rate*value_0_tensor,
-                                                              tf_store_signal:rate*store_tensor,
-                                                              tf_recall_signal:rate*recall_tensor})
-    variables_names =[v.name for v in tf.global_variables()]
-    values = sess.run(variables_names)
-    for k,v in zip(variables_names, values):
-        print(k, v)
-
-
-SNN_input=np.concatenate([output_v_0,output_v_1,output_store,output_recall],axis=-1)
-output=np.concatenate([output_v_0[0,:,:],output_v_1[0,:,:],output_store[0,:,:],output_recall[0,:,:]],axis=1)
-
-## define SNN unit
 def _lsnn_weight_initializer(shape,dtype=None,partition_info=None,verify_shape=None, gain=0.5):
     if dtype is None:
         dtype=tf.float32
@@ -128,6 +98,19 @@ tf.reset_default_graph()
 graph=tf.Graph()
 with graph.as_default():
     # input to graph
+    tf_value_1_signal=tf.placeholder("float32",[batch_size, num_time_steps*200, num_inputs])
+    tf_value_0_signal=tf.placeholder("float32",[batch_size, num_time_steps*200, num_inputs])
+    tf_store_signal=tf.placeholder("float32",[batch_size, num_time_steps*200, num_inputs])
+    tf_recall_signal=tf.placeholder("float32",[batch_size, num_time_steps*200, num_inputs])
+    value_1_cell = poisson_spike_cell.poisson_spike_cell(num_units=num_input_units)
+    value_0_cell = poisson_spike_cell.poisson_spike_cell(num_units=num_input_units)
+    store_cell = poisson_spike_cell.poisson_spike_cell(num_units=num_input_units)
+    recall_cell = poisson_spike_cell.poisson_spike_cell(num_units=num_input_units)
+    outputs_v_1, _ = tf.nn.dynamic_rnn(cell=value_1_cell, dtype=tf.float32, inputs=tf_value_1_signal)
+    outputs_v_0, _ = tf.nn.dynamic_rnn(cell=value_0_cell, dtype=tf.float32, inputs=tf_value_0_signal)
+    outputs_store, _ = tf.nn.dynamic_rnn(cell=store_cell, dtype=tf.float32, inputs=tf_store_signal)
+    outputs_recall, _ = tf.nn.dynamic_rnn(cell=recall_cell, dtype=tf.float32, inputs=tf_recall_signal)
+
     X_input=tf.placeholder('float',shape=[batch_size,total_time,num_spike_inputs])
     Y_input=tf.placeholder('float',shape=[batch_size,total_time,num_outputs])
     start_ind=tf.placeholder(tf.int32,shape=[batch_size,1])
@@ -194,11 +177,19 @@ with tf.Session(graph=graph) as sess:
     sess.run(init)
     for step in range(1,training_steps+1):
         batch_id=np.random.randint(0,num_of_trials,[batch_size])
-        batch_x =SNN_input[batch_id,:,:]
+        # first create the batch data
+        output_v_1 , output_v_0, output_store, output_recall = sess.run([outputs_v_1,outputs_v_0, outputs_store,outputs_recall],
+                                                              feed_dict={tf_value_1_signal:rate*value_1_tensor[batch_id,:,:],
+                                                              tf_value_0_signal:rate*value_0_tensor[batch_id,:,:],
+                                                              tf_store_signal:rate*store_tensor[batch_id,:,:],
+                                                              tf_recall_signal:rate*recall_tensor[batch_id,:,:]})
+        SNN_input=np.concatenate([output_v_0,output_v_1,output_store,output_recall],axis=-1)
+        output=np.concatenate([output_v_0[0,:,:],output_v_1[0,:,:],output_store[0,:,:],output_recall[0,:,:]],axis=1)
+        batch_x =SNN_input
         batch_y =goal[batch_id,:,:]
         batch_goal=np.argmax(np.abs(batch_y),axis=1)
+
         training , loss,merged_summary = sess.run([train,output_loss,merged_summary_op], feed_dict={X_input: batch_x, Y_input:batch_y, start_ind:batch_goal})
-        #
         tb_writer.add_summary(merged_summary, global_step=step)
         if step % display_step==0 :
             # get batch loss and accuracy
