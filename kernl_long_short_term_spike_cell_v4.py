@@ -34,6 +34,10 @@ from tensorflow.contrib.rnn.python.ops.core_rnn_cell import _Linear
 from tensorflow.contrib import slim
 
 
+###########################################
+###### functions used in the model ########
+###########################################
+
 def _append_input_spike(S,input_spikes):
     """input -
     S : a 4D tensor with batch n x d ,
@@ -46,7 +50,7 @@ def _append_input_spike(S,input_spikes):
     return S_out
 
 
-########################################
+
 def _tensor_linear(args,output_size,delay_tensor,bias=False,bias_initializer=None,kernel_initializer=None):
     if args is None or (nest.is_sequence(args) and not args):
         raise ValueError("`args` must be specified")
@@ -84,14 +88,8 @@ def _tensor_linear(args,output_size,delay_tensor,bias=False,bias_initializer=Non
     logging.warn("%s: res ", res)
     #if not bias:
     return res
-    #with vs.variable_scope(outer_scope) as inner_scope:
-    #    inner_scope.set_partitioner(None)
-    #if bias_initializer is None:
-    #    bias_initializer = init_ops.constant_initializer(0.0, dtype=dtype)
-    #biases = vs.get_variable( _BIAS_VARIABLE_NAME, [output_size],dtype=dtype,initializer=bias_initializer)
 
-    #return nn_ops.bias_add(res, biases)
-##############################################
+
 
 def _calculate_prob_spikes(x,threshold):
     """input - x : a 2D tensor with batch x n ex 10*1
@@ -106,16 +104,14 @@ def _calculate_prob_spikes(x,threshold):
 
     return res_out
 
-###########################################
-###### functions used in the model ########
-###########################################
+
 
 def _delay_one_hot_initializer(shape,dtype=None,partition_info=None,verify_shape=None, max_val=2):
     if dtype is None:
         dtype=tf.float32
     return tf.one_hot(tf.random_uniform(shape,0,max_val+1,dtype=tf.int32),depth=max_val+1)
 
-########################################
+
 @tf.custom_gradient
 def _calcualte_crossings(x):
     """input :x : a 2D tensor with batch x n
@@ -130,7 +126,28 @@ def _calcualte_crossings(x):
         dyres=tf.scalar_mul(0.3,tf.maximum(temp,0.0))
         return dyres
     return tf.cast(res,dtype=dtype), grad
-########################################
+
+
+
+def _spike_noise_perturbation(input_layer, std):
+    noise = tf.cast(tf.random_uniform(shape=tf.shape(input_layer), 0, maxval=2, stddev=std, dtype=tf.int32), dtype=tf.float32)
+    return tf.multiply(input_layer,0) + noise
+
+
+def _spike_activation_fcn(v,I_in,Beta,t_reset,dt,tau_m,R_mem,tau_refract):
+
+    alpha=tf.exp(tf.negative(tf.divide(dt,tau_m)))
+    eligilible_update=tf.cast(tf.less(t_reset,dt),tf.float32)
+    alpha_vec=tf.scalar_mul(alpha,eligilible_update)+(1-eligilible_update)
+    v_update=tf.add(tf.multiply(alpha_vec,v),tf.multiply(tf.multiply(1-alpha_vec,R_mem),I_in))
+    v_norm=tf.divide(tf.subtract(v_update,Beta),Beta)
+    spike_new=self._calculate_crossing(v_norm)
+    v_reseting=tf.multiply(v_update,spike_new)
+    v_new=tf.subtract(v_update,v_reseting)
+    t_update=tf.clip_by_value(tf.subtract(t_reset,dt),0.0,100)
+    t_reset_new=tf.add(tf.multiply(spike_new,tau_refract),t_update)
+
+    return v_new, spike_new, t_reset_new
 
 ###########################################
 ###### variables used in the model ########
@@ -138,10 +155,11 @@ def _calcualte_crossings(x):
 
 _DELAY_TENSOR_NAME="delay_tensor"
 _TENSOR_VARIABLE_NAME='kernel'
+_TEMPORAL_FILTER_NAME= "temporal_filter"
+_SENSITIVITY_TENSOR_NAME= "sensitivity_tensor"
 
-
-_LSNNStateTuple = collections.namedtuple("LSNNStateTuple", ("v_mem","spike","S_in","S_rec","b_threshold","t_reset"))
-_LSNNOutputTuple = collections.namedtuple("LSNNOutputTuple", ("v_mem","spike","S_in","S_rec","b_threshold"))
+_LSNNStateTuple = collections.namedtuple("LSNNStateTuple", ("v_mem","v_mem_hat","spike","S_in","S_rec","S_rec_hat","Omega","Gamma","b_threshold","b_threshold_hat","t_reset","t_reset_hat","eligibility_trace"))
+_LSNNOutputTuple = collections.namedtuple("LSNNOutputTuple", ("v_mem","spike"))
 
 class LSNNStateTuple(_LSNNStateTuple):
   """Tuple used by LSNN Cells for `state_variables `, and output state.
@@ -153,7 +171,7 @@ class LSNNStateTuple(_LSNNStateTuple):
 
   @property
   def dtype(self):
-    (v_mem,spike,S_in,S_rec,b_threshold,t_reset) = self
+    (v_mem,v_mem_hat,spike,S_in,S_rec,S_rec_hat,Omega,Gamma,b_threshold,b_threshold,b_threshold_hat,t_reset,t_reset_hat) = self
     if v_mem.dtype != spike.dtype:
       raise TypeError("Inconsistent internal state: %s vs %s" %
                       (str(v_mem.dtype), str(spike.dtype)))
@@ -167,11 +185,15 @@ class LSNNOutputTuple(_LSNNOutputTuple):
 
   @property
   def dtype(self):
-    (v_mem,spike,S_in,S_rec,b_threshold) = self
+    (v_mem,spike) = self
     if v_mem.dtype != spike.dtype:
-      raise TypeError("Inconsistent internal state: %s vs %s"
+      raise TypeError("Inconsistent internal state: %s vs %s" %
                       (str(v_mem.dtype), str(spike.dtype)))
     return spike.dtype
+
+###########################################
+###### define output cell  ################
+###########################################
 
 class output_spike_cell(tf.contrib.rnn.RNNCell):
   """LSNN Cell
@@ -203,20 +225,36 @@ class output_spike_cell(tf.contrib.rnn.RNNCell):
     return  self._num_units
 
   def call(self, inputs, state):
+    """ (LSNN).
+    Args:
+      inputs: `2-D` tensor with shape `[batch_size x input_size]`.
+      state: An `SNNStateTuple` of state tensors, shaped as following
+              `[batch_size x self.state_size]`
+    Returns:
+      A pair containing the new output, and the new state as SNNStateTuple
+    """
+    v_mem = state
 
     if self._linear is None:
         self._linear = _Linear([inputs],self._num_units,False,kernel_initializer=self._kernel_initializer)
-    alpha=tf.exp(tf.negative(tf.divide(self.dt,self.tau_m)))
-    state_new=tf.add(tf.multiply(alpha,state),tf.multiply(1-alpha,self._linear([inputs])))
-    ## return variables
-    return state_new, state_new
 
+    # calculate new Isyn = W*S
+
+    I_syn_new=self._linear([inputs])
+        # calculate factor for updating
+    alpha=tf.exp(tf.negative(tf.divide(self.dt,self.tau_m)))
+        # update voltage
+    v_mem_new=tf.add(tf.scalar_mul(alpha,v_mem),I_syn_new)
+
+    ## return variables
+    new_state =  v_mem_new
+    new_output = v_mem_new
+    return new_output, new_state
 
 ###########################################
 #### define input spiking cell ############
 ###########################################
 
-## define LSNNOutcell
 class input_spike_cell(tf.contrib.rnn.RNNCell):
     def __init__(self,
                num_units=80,
@@ -238,7 +276,6 @@ class input_spike_cell(tf.contrib.rnn.RNNCell):
         new_state =  new_spikes
         new_output = new_spikes
         return new_output, new_state
-
 
 ###########################################
 #### define context input cell ############
@@ -271,11 +308,12 @@ class context_input_spike_cell(tf.contrib.rnn.RNNCell):
         new_output = tf.cast(tf.greater(new_state,self._context_switch),tf.float32)
         return new_output, new_state
 
+#########################################################
+#### define kernl_long_short_term_spike_cell ############
+#########################################################
 
-##########################################
 
-
-class long_short_term_spike_cell(tf.contrib.rnn.RNNCell):
+class kernl_long_short_term_spike_cell(tf.contrib.rnn.RNNCell):
   """ long_short_term_spike_Cell
   Args:
   """
@@ -297,6 +335,8 @@ class long_short_term_spike_cell(tf.contrib.rnn.RNNCell):
                delay_initializer=None,
                kernel_initializer=None,
                bias_initializer=None,
+               sensitivity_initializer=None,
+               temporal_filter_initializer=None,
                state_is_tuple=True,
                output_is_tuple=False):
     super(long_short_term_spike_cell, self).__init__(_reuse=reuse)
@@ -317,11 +357,15 @@ class long_short_term_spike_cell(tf.contrib.rnn.RNNCell):
     self._kernel_initializer = kernel_initializer
     self._bias_initializer = bias_initializer
     self._delay_initializer=delay_initializer
+    self._sensitivity_initializer=sensitivity_initializer
+    self._temporal_filter_initializer=temporal_filter_initializer
     self._state_is_tuple= state_is_tuple
     self._output_is_tuple= output_is_tuple
     self._calculate_crossing= _calcualte_crossings
     self._append_input_spike=_append_input_spike
     self._delay_one_hot_initializer=_delay_one_hot_initializer
+    self._spike_activation_fcn=_spike_activation_fcn
+    self._noise_perturbation=_spike_activation_fcn
 
 # create intializers
     if kernel_initializer is None:
@@ -334,69 +378,105 @@ class long_short_term_spike_cell(tf.contrib.rnn.RNNCell):
     else:
         self._delay_initializer=delay_initializer
 
+    if sensitivity_initializer is None:
+        self._sensitivity_initializer=tf.contrib.layers.xavier_initializer(uniform=True,seed=None,dtype=tf.float32)
+    else:
+        self._sensitivity_initializer=sensitivity_initializer
 
+    if temporal_filter_initializer is None:
+        self._temporal_filter_initializer=tf.initializers.random_uniform(maxval=1/self._time_steps)
+    else:
+        self._temporal_filter_initializer=temporal_filter_initializer
   @property
   def state_size(self):
     return (LSNNStateTuple(self._num_units,
-                          self._num_units,
-                          np.array([self._num_inputs,self._max_delay]),
+                           self._num_units,
+                           self._num_units,
+                           np.array([self._num_inputs,self._max_delay]),
+                          np.array([self._num_units,self._max_delay]),
                           np.array([self._num_units,self._max_delay]),
                           self._num_units,
-                          self._num_units) if self._state_is_tuple else self._num_units)
+                          self._num_units,
+                          self._num_units,
+                          self._num_units,
+                          self._num_units,
+                          self._num_units,
+                          np.array([self._num_units,self._num_units+self._num_inputs])) if self._state_is_tuple else self._num_units)
   @property
   def output_size(self):
-    return (LSNNOutputTuple(self._num_units,
-                          self._num_units,
-                          np.array([self._num_inputs,self._max_delay]),
-                          np.array([self._num_units,self._max_delay]),
-                          self._num_units) if self._output_is_tuple else self._num_units)
+    return (LSNNOutputTuple(self._num_units, self._num_units) if self._output_is_tuple else self._num_units)
 
   def call(self, inputs, state):
-    """ (conductance_spike_Cell call function).
+     """ (conductance_spike_Cell call function).
     Args:
         inputs: `2-D` tensor with shape `[batch_size x input_size]`.
         state: An `LSSNStateTuple` of state tensors, shaped as following
-          v_mem:            [batch_size x self.state_size]`
-          spike:            [batch_size x self.state_size]`
-          S:                [self._num_units+self._num_inputs,self.synaptic_delay[-1]]`
-          b_threshold       [batch_size x self.state_size]`
-          t_reset           [batch_size x self.state_size]`
+          v_mem:                [batch_size x self.state_size]`
+          v_mem_hat:            [batch_size x self.state_size]`
+          spike:                [batch_size x self.state_size]`
+          S_in:                 [batch_size x self.state_size]`
+          S_rec:                [batch_size x self.state_size]`
+          Omega:                [self._num_units+self._num_inputs,self.synaptic_delay[-1]]`
+          Gamma                 [batch_size x self.state_size]`
+          beta_threshold        [batch_size x self.state_size]`
+          beta_threshold_hat    [batch_size x self.state_size]`
+          t_reset               [batch_size x self.state_size]`
+          t_reset_hat           [batch_size x self.state_size]`
+          eligibility_trace     [batch_size x self.state_size]`
     Returns:
       A pair containing the new output, and the new state as SNNStateTuple
     """
+    #
     scope=vs.get_variable_scope()
     with vs.variable_scope(scope,initializer= self._delay_initializer) as _delay_scope:
         delay_tensor=tf.get_variable(_DELAY_TENSOR_NAME,shape=[self._num_units,self._num_units+self._num_inputs],dtype=tf.float32,trainable=False)
     logging.warn("%s: delay tensor ", delay_tensor)
+    #
+    scope=vs.get_variable_scope()
+    with vs.variable_scope(scope,initializer=self._temporal_filter_initializer) as temporal_filter_scope:
+        temporal_filter=tf.get_variable(_TEMPORAL_FILTER_NAME,shape=[self._num_units],dtype=tf.float32,trainable=True)
+    #
+    scope=vs.get_variable_scope()
+    with vs.variable_scope(scope,initializer= self._sensitivity_initializer) as sensitivity_scope:
+        sensitivity_tensor=tf.get_variable(_SENSITIVITY_TENSOR_NAME,shape=[self._num_units,self._num_units],dtype=tf.float32,trainable=True)
+
+
     if self._state_is_tuple:
-        v_mem,spike,S_in,S_rec,b_threshold,t_reset = state
+        v_mem,v_mem_hat,spike,S_in,S_rec,Omega,Gamma, b_threshold,beta_threshold_hat,t_reset,t_reset_hat,eligibility_trace = state
     else:
         logging.error("this cell only accept state as tuple ", self)
     # roll s and add the last value the spike which gets integrated
     logging.warn("%s: S_in ", S_in)
     logging.warn("%s: S_rec ", S_rec)
-   # logging.warn("S_rec ", S_rec)
-    I_syn=self._linear([S_in,S_rec],self._num_units,delay_tensor,kernel_initializer=self._kernel_initializer)
     alpha=tf.exp(tf.negative(tf.divide(self.dt,self.tau_m)))
     rho=tf.exp(tf.negative(tf.divide(self.dt,self.tau_beta)))
-    Beta= self.beta_baseline + tf.multiply(self.beta_coeff,b_threshold)
-    eligilible_update=tf.cast(tf.less(t_reset,self.dt),tf.float32)
-    # modify alpha so that only affect neurons that are beyond their refractory period
-    alpha_vec=tf.scalar_mul(alpha,eligilible_update)+(1-eligilible_update)
-    v_mem_update=tf.add(tf.multiply(alpha_vec,v_mem),tf.multiply(tf.multiply(1-alpha_vec,self.R_mem),I_syn))
-    v_mem_norm=tf.divide(tf.subtract(v_mem_update,Beta),Beta)
-    spike_new=self._calculate_crossing(v_mem_norm)
-    v_reseting=tf.multiply(v_mem_update,spike_new)
-    v_mem_new=tf.subtract(v_mem_update,v_reseting)
-    b_threshold_new = tf.add(tf.scalar_mul(rho,b_threshold), tf.scalar_mul(1-rho,spike_new))
-    t_update=tf.clip_by_value(tf.subtract(t_reset,self.dt),0.0,100)
-    t_reset_new=tf.add(tf.multiply(spike_new,self.tau_refract),t_update)
-##
-    S_in_new = self._append_input_spike(S_in,inputs)
-    S_rec_new = self._append_input_spike(S_rec,spike_new)
+    with tf.name_scope("update_v_mem") as scope:
+        I_syn=self._linear([S_in,S_rec],self._num_units,delay_tensor,kernel_initializer=self._kernel_initializer)
+        Beta= self.beta_baseline + tf.multiply(self.beta_coeff,b_threshold)
+        v_mem_new,spike_new,t_reset_new=self._spike_activation_fcn(v_mem,I_syn,Beta,t_reset,self.dt,self.tau_m,self.R_mem,self.tau_refract)
+        b_threshold_new = tf.add(tf.scalar_mul(rho,b_threshold), tf.scalar_mul(1-rho,spike_new))
+        S_in_new = self._append_input_spike(S_in,inputs)
+        S_rec_new = self._append_input_spike(S_rec,spike_new)
+    with tf.name_scope("update_v_mem_hat") as scope:
+        kernel_decay=tf.expand_dims(self._eligibility_filter(-temporal_filter),axis=-1)
+        Omega_new=tf.add(tf.multiply(self._eligibility_filter(-temporal_filter),Omega),psi_new)
+        Gamma_new=tf.subtract(tf.multiply(self._eligibility_filter(-temporal_filter),Gamma),
+                              tf.multiply(self._eligibility_filter(-temporal_filter),Omega))
+
+        I_syn_hat=self._linear([S_in,S_rec_hat],self._num_units,delay_tensor,kernel_initializer=self._kernel_initializer)
+        Beta_hat= self.beta_baseline + tf.multiply(self.beta_coeff,b_threshold_hat)
+        v_mem_hat_new,spike_new_hat,t_reset_hat_new=self._spike_activation_fcn(v_mem_hat,
+                                                                           I_syn_hat,
+                                                                           Beta_hat,
+                                                                           t_reset_hat,
+                                                                           self.dt,self.tau_m,self.R_mem,self.tau_refract)
+        b_threshold_hat_new = tf.add(tf.scalar_mul(rho,b_threshold_hat), tf.scalar_mul(1-rho,spike_new_hat))
+
+        psi_new=self._noise_perturbation(spike_new_hat)
+        S_rec_new_hat = self._append_input_spike(S_rec_hat,spike_new_hat+psi_new)
     # return variables
     if self._state_is_tuple:
-        new_state = LSNNStateTuple( v_mem_new,spike_new, S_in_new,S_rec_new, b_threshold_new, t_reset_new )
+        new_state = LSNNStateTuple( v_mem_new,v_mem_hat_new,spike_new, S_in_new,S_rec_new,S_rec_new_hat,Omega_new,Gamma_new b_threshold_new,beta_threshold_hat t_reset_new,t_reset_hat_new,eligibility_trace_new )
     if self._output_is_tuple:
         new_output = LSNNOutputTuple( v_mem_new,spike_new, S_in_new,S_rec_new, b_threshold_new )
     else:
