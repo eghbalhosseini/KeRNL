@@ -49,7 +49,7 @@ num_classes = 10 # MNIST total classes (0-9 digits)
 # Training Parameters
 tensor_learning_rate = 1e-5
 weight_learning_rate = 1e-3
-training_steps = 4000
+training_steps = 100000
 batch_size = 20
 display_step = 25
 test_len=128
