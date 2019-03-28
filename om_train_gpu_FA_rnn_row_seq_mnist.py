@@ -55,7 +55,7 @@ tf.logging.set_verbosity(old_v)
 # Training Parameters
 # Training Parameters
 learning_rate = 0.001
-training_steps = 100000
+training_steps = 200000
 batch_size = 128
 display_step = 20
 
