@@ -71,9 +71,6 @@ num_classes = 10 # MNIST total classes (0-9 digits)
 log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/bptt_fa_rnn_seq_mnist_dataset/beta_true_normal_1e-1_fa_rnn_relu_add_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_steps_%1.0e_run_%s" %(learning_rate,batch_size,num_hidden,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
 log_dir
 # create a training and testing dataset
-training_x, training_y = adding_problem.get_batch(batch_size=training_size,time_steps=time_steps)
-testing_x, testing_y = adding_problem.get_batch(batch_size=test_size,time_steps=time_steps)
-
 def _hinton_identity_initializer(shape,dtype=None,partition_info=None,verify_shape=None, max_val=1):
     if dtype is None:
         dtype=tf.float32
