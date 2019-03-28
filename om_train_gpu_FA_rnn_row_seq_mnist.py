@@ -42,8 +42,12 @@ import fa_rnn_cell
 # uplading mnist data
 
 # Import MNIST data
+# Import MNIST data
+old_v = tf.logging.get_verbosity()
+tf.logging.set_verbosity(tf.logging.ERROR)
 from tensorflow.examples.tutorials.mnist import input_data
-mnist = input_data.read_data_sets("/tmp/data/", one_hot=True)
+mnist = input_data.read_data_sets("MNIST_data/", one_hot=True)
+tf.logging.set_verbosity(old_v)
 
 
 
