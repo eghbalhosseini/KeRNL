@@ -195,7 +195,6 @@ with graph.as_default():
         tf.summary.histogram('kernl_output_addition', trainables[kernl_output_addition_index]+1e-10)
         # kernl loss
         tf.summary.scalar('kernl_loss_output_prediction',kernl_loss_output_prediction+1e-10)
-        tf.summary.scalar('kernl_accuracy',kernl_accuracy)
         # kernl kernel and output weight
         tf.summary.image('kernl_kernel',tf.expand_dims(tf.expand_dims(trainables[kernl_kernel_index],axis=0),axis=-1))
         tf.summary.image('kernl_kernel_grad',tf.expand_dims(tf.expand_dims(kernl_weight_update,axis=0),axis=-1))
