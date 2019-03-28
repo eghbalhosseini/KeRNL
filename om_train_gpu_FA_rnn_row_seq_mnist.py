@@ -55,7 +55,7 @@ tf.logging.set_verbosity(old_v)
 # Training Parameters
 # Training Parameters
 learning_rate = 0.001
-training_steps = 200000
+training_steps = 100000
 batch_size = 128
 display_step = 20
 
@@ -68,7 +68,7 @@ num_classes = 10 # MNIST total classes (0-9 digits)
 
 #
 # save dir
-log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/bptt_fa_rnn_seq_mnist_dataset/beta_true_normal_1e-1_fa_rnn_relu_add_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_steps_%1.0e_run_%s" %(learning_rate,batch_size,num_hidden,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/bptt_fa_rnn_seq_mnist_dataset/beta_false__fa_rnn_relu_add_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_steps_%1.0e_run_%s" %(learning_rate,batch_size,num_hidden,training_steps, datetime.now().strftime("%Y%m%d_%H%M"))
 log_dir
 # create a training and testing dataset
 def _hinton_identity_initializer(shape,dtype=None,partition_info=None,verify_shape=None, max_val=1):

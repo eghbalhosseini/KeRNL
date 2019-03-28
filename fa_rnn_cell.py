@@ -62,7 +62,7 @@ def _beta_mat_mul(a,b):
 
     res=gen_math_ops.mat_mul(a,b)
     def grad(dy):
-        grad_a = gen_math_ops.mat_mul(dy, beta, transpose_b=True)
+        grad_a = gen_math_ops.mat_mul(dy, b, transpose_b=True)
         grad_b = gen_math_ops.mat_mul(a, dy, transpose_a=True)
         return  [grad_a , grad_b]
     return res, grad
