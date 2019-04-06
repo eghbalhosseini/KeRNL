@@ -159,7 +159,7 @@ class kernl_rnn_cell(tf.contrib.rnn.RNNCell):
 
         # _kernel_initializer
         if kernel_initializer is None:
-            self._kernel_initializer=tf.initializers.identity()
+            self._kernel_initializer=tf.random_normal_initializer(stddev=0.1)
         else:
             self._kernel_initializer=kernel_initializer
 
