@@ -38,7 +38,7 @@ TEST_LENGTH=125
 DISPLAY_STEP=25
 weight_learning_rate=1e-3
 
-log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/ffn/bp_tanh_mnist_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,BATCH_SIZE,HIDDEN_SIZE,NUM_TRAINING_STEPS, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/ffn/fa_tanh_mnist_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,BATCH_SIZE,HIDDEN_SIZE,NUM_TRAINING_STEPS, datetime.now().strftime("%Y%m%d_%H%M"))
 log_dir
 
 def drelu(x):
@@ -92,10 +92,10 @@ with graph.as_default():
         db_2=tf.reduce_mean(tf.subtract(output,Y),axis=0)
         dg_hidden=dtanh(g_hidden)
         dg_hidden_diag=tf.linalg.diag(dg_hidden)
-        dW_1=tf.transpose(tf.reduce_mean(tf.einsum('uv,ug->uvg',tf.einsum('uv,uvg->ug',tf.einsum('un,nv->uv',tf.subtract(output,Y),tf.transpose(W_2)),dg_hidden_diag),X),axis=0))
-        db_1=tf.transpose(tf.reduce_mean(tf.einsum('uv,ug->ug',tf.einsum('un,nv->uv',tf.subtract(output,Y),tf.transpose(W_2)),dg_hidden),axis=0))
-        #dW_1=tf.transpose(tf.reduce_mean(tf.einsum('uv,ug->uvg',tf.einsum('uv,uvg->ug',tf.einsum('un,nv->uv',tf.subtract(output,Y),B),dg_hidden_diag),X),axis=0))
-        #db_1=tf.transpose(tf.reduce_mean(tf.einsum('uv,ug->ug',tf.einsum('un,nv->uv',tf.subtract(output,Y),B),dg_hidden),axis=0))
+        #dW_1=tf.transpose(tf.reduce_mean(tf.einsum('uv,ug->uvg',tf.einsum('uv,uvg->ug',tf.einsum('un,nv->uv',tf.subtract(output,Y),tf.transpose(W_2)),dg_hidden_diag),X),axis=0))
+        #db_1=tf.transpose(tf.reduce_mean(tf.einsum('uv,ug->ug',tf.einsum('un,nv->uv',tf.subtract(output,Y),tf.transpose(W_2)),dg_hidden),axis=0))
+        dW_1=tf.transpose(tf.reduce_mean(tf.einsum('uv,ug->uvg',tf.einsum('uv,uvg->ug',tf.einsum('un,nv->uv',tf.subtract(output,Y),B),dg_hidden_diag),X),axis=0))
+        db_1=tf.transpose(tf.reduce_mean(tf.einsum('uv,ug->ug',tf.einsum('un,nv->uv',tf.subtract(output,Y),B),dg_hidden),axis=0))
         # gradient for B
         dB=tf.negative(tf.reduce_mean(tf.einsum('uv,uz->uvz',output,tf.subtract(hidden,tf.einsum('uv,vz->uz',output,0*B))),axis=0))
         new_ffn_grads=list(zip([dW_1,db_1,dW_2,db_2,dB],trainables))
