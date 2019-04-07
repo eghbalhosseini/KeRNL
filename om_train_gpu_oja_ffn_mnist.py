@@ -38,7 +38,7 @@ TEST_LENGTH=125
 DISPLAY_STEP=25
 weight_learning_rate=1e-3
 
-log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/ffn/fa_tanh_mnist_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,BATCH_SIZE,HIDDEN_SIZE,NUM_TRAINING_STEPS, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/ffn/bp_tensorflow_tanh_mnist_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,BATCH_SIZE,HIDDEN_SIZE,NUM_TRAINING_STEPS, datetime.now().strftime("%Y%m%d_%H%M"))
 log_dir
 
 def drelu(x):
@@ -68,6 +68,7 @@ with graph.as_default():
     # return weight
     B=tf.get_variable('B',shape=[OUTPUT_SIZE,HIDDEN_SIZE],initializer=tf.initializers.random_uniform(minval=-0.5,maxval=0.5))
     trainables=[W_1,b_1,W_2,b_2,B]
+    bp_trainables=[W_1,b_1,W_2,b_2]
 
     variable_names=[v.name for v in tf.trainable_variables()]
     #
@@ -86,7 +87,7 @@ with graph.as_default():
         loss = tf.losses.mean_squared_error(Y, output)
         correct_prediction = tf.equal(tf.argmax(Y, 1), tf.argmax(output, 1))
         accuracy = 100 * tf.reduce_mean(tf.cast(correct_prediction, tf.float32))
-        optimizer  = tf.train.AdamOptimizer(learning_rate=weight_learning_rate)
+        optimizer  = tf.train.RMSPropOptimizer(learning_rate=weight_learning_rate)
   # compute and apply gradiants
         dW_2=tf.reduce_mean(tf.transpose(tf.einsum('uv,un->uvn',tf.subtract(output,Y),(hidden))),axis=-1)
         db_2=tf.reduce_mean(tf.subtract(output,Y),axis=0)
@@ -99,7 +100,8 @@ with graph.as_default():
         # gradient for B
         dB=tf.negative(tf.reduce_mean(tf.einsum('uv,uz->uvz',output,tf.subtract(hidden,tf.einsum('uv,vz->uz',output,0*B))),axis=0))
         new_ffn_grads=list(zip([dW_1,db_1,dW_2,db_2,dB],trainables))
-        ffn_train_op=optimizer.apply_gradients(new_ffn_grads)
+        ffn_gradients=optimizer.compute_gradients(loss,bp_trainables)
+        ffn_train_op=optimizer.apply_gradients(ffn_gradients)
 
 
     with tf.name_scope("evaluate") as scope:
