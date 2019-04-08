@@ -33,7 +33,7 @@ TEST_LENGTH=125
 DISPLAY_STEP=50
 weight_learning_rate=1e-3
 
-log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/rnn_ffn/fa_ffn_tanh_xaviar_mnist_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,BATCH_SIZE,HIDDEN_SIZE,NUM_TRAINING_STEPS, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/rnn_ffn/oja_ffn_tanh_xaviar_mnist_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,BATCH_SIZE,HIDDEN_SIZE,NUM_TRAINING_STEPS, datetime.now().strftime("%Y%m%d_%H%M"))
 log_dir
 
 def drelu(x):
@@ -110,14 +110,14 @@ with graph.as_default():
 
 
         # gradient for B
-        dB1=tf.transpose(tf.negative(tf.reduce_mean(tf.einsum('uv,uz->uvz',g_hidden_2,tf.subtract(hidden_1,tf.einsum('uv,vz->uz',g_hidden_2,tf.transpose(B1)))),axis=0)))
+        dB1=tf.transpose(tf.negative(tf.reduce_mean(tf.einsum('uv,uz->uvz',hidden_2,tf.subtract(hidden_1,tf.einsum('uv,vz->uz',hidden_2,tf.transpose(B1)))),axis=0)))
         dB2=tf.transpose(tf.negative(tf.reduce_mean(tf.einsum('uv,uz->uvz',output,tf.subtract(hidden_2,tf.einsum('uv,vz->uz',output,tf.transpose(B2)))),axis=0)))
 
         oja_ffn_grads=list(zip([dW_0,db_0,dW_1,db_1,dW_2,db_2,dB1,dB2],oja_trainables))
         fa_ffn_grads=list(zip([dW_0,db_0,dW_1,db_1,dW_2,db_2],fa_trainables))
         ffn_gradients=optimizer.compute_gradients(loss,fa_trainables)
 
-        ffn_train_op=optimizer.apply_gradients(fa_ffn_grads)
+        ffn_train_op=optimizer.apply_gradients(oja_ffn_grads)
 
         #automatic gradient
 
