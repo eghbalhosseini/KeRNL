@@ -110,7 +110,7 @@ with graph.as_default():
 
 
         # gradient for B
-        dB1=tf.transpose(tf.negative(tf.reduce_mean(tf.einsum('uv,uz->uvz',hidden_2,tf.subtract(hidden_1,tf.einsum('uv,vz->uz',hidden_2,tf.transpose(B1)))),axis=0)))
+        dB1=tf.transpose(tf.negative(tf.reduce_mean(tf.einsum('uv,uz->uvz',g_hidden_2,tf.subtract(hidden_1,tf.einsum('uv,vz->uz',g_hidden_2,tf.transpose(B1)))),axis=0)))
         dB2=tf.transpose(tf.negative(tf.reduce_mean(tf.einsum('uv,uz->uvz',output,tf.subtract(hidden_2,tf.einsum('uv,vz->uz',output,tf.transpose(B2)))),axis=0)))
 
         oja_ffn_grads=list(zip([dW_0,db_0,dW_1,db_1,dW_2,db_2,dB1,dB2],oja_trainables))
