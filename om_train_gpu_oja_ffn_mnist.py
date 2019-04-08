@@ -33,7 +33,7 @@ TEST_LENGTH=125
 DISPLAY_STEP=50
 weight_learning_rate=1e-3
 
-log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/rnn_ffn/oja_ffn_tanh_xaviar_mnist_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,BATCH_SIZE,HIDDEN_SIZE,NUM_TRAINING_STEPS, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/rnn_ffn/oja_ffn_relu_xaviar_mnist_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,BATCH_SIZE,HIDDEN_SIZE,NUM_TRAINING_STEPS, datetime.now().strftime("%Y%m%d_%H%M"))
 log_dir
 
 def drelu(x):
@@ -74,10 +74,10 @@ with graph.as_default():
     #define transformation from input to output
   # Hidden Layer Transformation
     g_hidden_1=tf.matmul(X, W_0) + b_0
-    hidden_1 = tf.nn.tanh(g_hidden_1)
+    hidden_1 = tf.nn.relu(g_hidden_1)
     #
     g_hidden_2=tf.matmul(hidden_1,W_1) + b_1
-    hidden_2=tf.nn.tanh(g_hidden_2)
+    hidden_2=tf.nn.relu(g_hidden_2)
   # Output Layer Transformation
     output = tf.matmul(hidden_2, W_2) + b_2
 
@@ -93,14 +93,14 @@ with graph.as_default():
   # compute and apply gradiants
         dW_2=tf.reduce_mean(tf.transpose(tf.einsum('uv,un->uvn',tf.subtract(output,Y),(hidden_2))),axis=-1)
         db_2=tf.reduce_mean(tf.subtract(output,Y),axis=0)
-        dg_hidden_2=dtanh(g_hidden_2)
+        dg_hidden_2=drelu(g_hidden_2)
         dg_hidden_diag_2=tf.linalg.diag(dg_hidden_2)
         #delta_2=tf.einsum('un,nv->uv',tf.subtract(output,Y),tf.transpose(W_2)) # backprop
         delta_2=tf.matmul(tf.subtract(output,Y),tf.transpose(B2))
         dW_1=tf.transpose(tf.reduce_mean(tf.einsum('uv,ug->uvg',tf.einsum('uv,uvg->ug',delta_2,dg_hidden_diag_2),hidden_1),axis=0))
         db_1=tf.transpose(tf.reduce_mean(tf.einsum('uv,ug->ug',delta_2,dg_hidden_2),axis=0))
         #
-        dg_hidden_1=dtanh(g_hidden_1)
+        dg_hidden_1=drelu(g_hidden_1)
         dg_hidden_diag_1=tf.linalg.diag(dg_hidden_1)
         #delta_1=tf.einsum('un,nv->uv',tf.multiply(delta_2,dg_hidden_2),tf.transpose(W_1)) # backprop
         delta_1=tf.matmul(delta_2,tf.transpose(B1))
@@ -110,7 +110,7 @@ with graph.as_default():
 
 
         # gradient for B
-        dB1=tf.transpose(tf.negative(tf.reduce_mean(tf.einsum('uv,uz->uvz',g_hidden_2,tf.subtract(hidden_1,tf.einsum('uv,vz->uz',g_hidden_2,tf.transpose(B1)))),axis=0)))
+        dB1=tf.transpose(tf.negative(tf.reduce_mean(tf.einsum('uv,uz->uvz',hidden_2,tf.subtract(hidden_1,tf.einsum('uv,vz->uz',hidden_2,tf.transpose(B1)))),axis=0)))
         dB2=tf.transpose(tf.negative(tf.reduce_mean(tf.einsum('uv,uz->uvz',output,tf.subtract(hidden_2,tf.einsum('uv,vz->uz',output,tf.transpose(B2)))),axis=0)))
 
         oja_ffn_grads=list(zip([dW_0,db_0,dW_1,db_1,dW_2,db_2,dB1,dB2],oja_trainables))
