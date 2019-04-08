@@ -33,7 +33,7 @@ TEST_LENGTH=125
 DISPLAY_STEP=50
 weight_learning_rate=1e-3
 
-log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/rnn_ffn/bp_ffn_tanh_xaviar_mnist_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,BATCH_SIZE,HIDDEN_SIZE,NUM_TRAINING_STEPS, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/rnn_ffn/fa_ffn_tanh_xaviar_mnist_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,BATCH_SIZE,HIDDEN_SIZE,NUM_TRAINING_STEPS, datetime.now().strftime("%Y%m%d_%H%M"))
 log_dir
 
 def drelu(x):
@@ -64,8 +64,8 @@ with graph.as_default():
     W_2 = tf.get_variable("Output_W", shape=[HIDDEN_SIZE, OUTPUT_SIZE], initializer=initializer)
     b_2 = tf.get_variable("Output_b", shape=[OUTPUT_SIZE], initializer=initializer)
     # return weight
-    B1=tf.get_variable('B1',shape=[HIDDEN_SIZE,HIDDEN_SIZE],initializer=tf.initializers.random_uniform(minval=-0.1,maxval=0.1))
-    B2=tf.get_variable('B2',shape=[HIDDEN_SIZE,OUTPUT_SIZE],initializer=tf.initializers.random_uniform(minval=-0.1,maxval=0.1))
+    B1=tf.get_variable('B1',shape=[HIDDEN_SIZE,HIDDEN_SIZE],initializer=tf.initializers.random_uniform(minval=-0.5,maxval=0.5))
+    B2=tf.get_variable('B2',shape=[HIDDEN_SIZE,OUTPUT_SIZE],initializer=tf.initializers.random_uniform(minval=-0.5,maxval=0.5))
     fa_trainables=[W_0,b_0,W_1,b_1,W_2,b_2]
     oja_trainables=[W_0,b_0,W_1,b_1,W_2,b_2,B1,B2]
     #
@@ -117,7 +117,7 @@ with graph.as_default():
         fa_ffn_grads=list(zip([dW_0,db_0,dW_1,db_1,dW_2,db_2],fa_trainables))
         ffn_gradients=optimizer.compute_gradients(loss,fa_trainables)
 
-        ffn_train_op=optimizer.apply_gradients(ffn_gradients)
+        ffn_train_op=optimizer.apply_gradients(fa_ffn_grads)
 
         #automatic gradient
 
