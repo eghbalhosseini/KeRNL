@@ -3,8 +3,6 @@ import tensorflow as tf
 import os
 from datetime import datetime
 from pathlib import Path
-import matplotlib.pyplot as plt
-%matplotlib inline
 # uplading mnist data
 
 old_v = tf.logging.get_verbosity()
