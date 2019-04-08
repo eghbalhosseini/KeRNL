@@ -64,8 +64,8 @@ with graph.as_default():
     W_2 = tf.get_variable("Output_W", shape=[HIDDEN_SIZE, OUTPUT_SIZE], initializer=initializer)
     b_2 = tf.get_variable("Output_b", shape=[OUTPUT_SIZE], initializer=initializer)
     # return weight
-    B1=tf.get_variable('B1',shape=[HIDDEN_SIZE,HIDDEN_SIZE],initializer=tf.initializers.random_uniform(minval=-0.5,maxval=0.5))
-    B2=tf.get_variable('B2',shape=[HIDDEN_SIZE,OUTPUT_SIZE],initializer=tf.initializers.random_uniform(minval=-0.5,maxval=0.5))
+    B1=tf.get_variable('B1',shape=[HIDDEN_SIZE,HIDDEN_SIZE],initializer=tf.initializers.random_uniform(minval=-0.2,maxval=0.2))
+    B2=tf.get_variable('B2',shape=[HIDDEN_SIZE,OUTPUT_SIZE],initializer=tf.initializers.random_uniform(minval=-0.2,maxval=0.2))
     fa_trainables=[W_0,b_0,W_1,b_1,W_2,b_2]
     oja_trainables=[W_0,b_0,W_1,b_1,W_2,b_2,B1,B2]
     #
