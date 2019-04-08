@@ -77,7 +77,7 @@ tensor_learning_rate = 1e-5
 perturbation_std=1e-10
 grad_clip=100
 TIMESTEP=2
-log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/rnn_ffn/kernl_rnn_xaviar_mnist_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,BATCH_SIZE,HIDDEN_SIZE,NUM_TRAINING_STEPS, datetime.now().strftime("%Y%m%d_%H%M"))
+log_dir = "/om/user/ehoseini/MyData/KeRNL/logs/rnn_ffn/kernl_tanh_rnn_xaviar_mnist_eta_weight_%1.0e_batch_%1.0e_hum_hidd_%1.0e_steps_%1.0e_run_%s" %(weight_learning_rate,BATCH_SIZE,HIDDEN_SIZE,NUM_TRAINING_STEPS, datetime.now().strftime("%Y%m%d_%H%M"))
 log_dir# create a training and testing dataset
 
 
@@ -90,7 +90,7 @@ def kernl_rnn(x,kernel_weights,kernel_bias,initial_state):
                                                       time_steps=TIMESTEP,
                                                       noise_param=perturbation_std,
                                                       sensitivity_initializer=tf.initializers.identity()
-                                                      ,activation="relu",
+                                                      ,activation="tanh",
                                                        kernel_initializer=tf.contrib.layers.xavier_initializer()
                                                       )
         # Get KeRNL cell output
